@@ -1,0 +1,11 @@
+Euclidean Go
+Copyright 2026 Alexandre Dufour-Richard
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+The bundled network weights (results/universal/champion.pt) were produced
+entirely by self-play reinforcement learning within this project. They are
+not derived from any third-party game records or trained models.
+
+This software depends on third-party packages (PyTorch, NumPy) distributed
+under their own licenses.

@@ -1,0 +1,12 @@
+{
+  "meta": {
+    "cells_requested": 40,
+    "clip_radius": 4.0001,
+    "family": "hex",
+    "radius_requested": null,
+    "seed": 0
+  },
+  "name": "hex_c40_s0",
+  "num_edges": 54,
+  "num_nodes": 42
+}

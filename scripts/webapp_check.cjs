@@ -1,0 +1,22 @@
+const path = require("path");
+const { CFG, WEIGHTS_B64, BOARDS } = require(path.join(__dirname, "..", "webapp", "data.js"));
+const TG = require(path.join(__dirname, "..", "webapp", "engine.js"));
+const tc = require(path.join(__dirname, "..", "webapp", "testcase.json"));
+const net = TG.loadNet(WEIGHTS_B64, CFG);
+const board = TG.makeBoard(BOARDS[tc.key]);
+const colors = Int8Array.from(tc.colors);
+const state = { colors, toMove: tc.to_move, passCount: 0, moveNum: tc.move_num, history: new Set([colors.join("")]) };
+const enc = TG.encode(state, board);
+const out = TG.forward(net, enc.x, board.n, board.adj);
+let dp = 0; for (let i = 0; i <= board.n; i++) if (tc.policy[i] > -1e8) dp = Math.max(dp, Math.abs(out.policy[i] - tc.policy[i]));
+const dv = Math.abs(out.value - tc.value);
+let dn = 0; for (let i = 0; i < board.n; i++) dn = Math.max(dn, Math.abs(out.ownSigned[i] - tc.own_signed[i]));
+console.log(`board ${tc.key} N=${board.n} move=${tc.move_num}`);
+console.log(`  max|d policy logit| = ${dp.toExponential(2)}`);
+console.log(`  |d value|           = ${dv.toExponential(2)}`);
+console.log(`  max|d ownership|    = ${dn.toExponential(2)}`);
+// quick MCTS sanity: a move is produced and legal
+const mv = TG.search(state, board, net, 64).move;
+const legal = TG.legalMoves(state, board);
+console.log(`  MCTS(64) move=${mv} legal=${!!legal[mv]}`);
+console.log((dp < 1e-3 && dv < 1e-3 && dn < 1e-3 && !!legal[mv]) ? "PASS — JS engine matches PyTorch" : "FAIL");

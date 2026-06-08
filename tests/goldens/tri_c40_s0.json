@@ -1,0 +1,12 @@
+{
+  "meta": {
+    "cells_requested": 40,
+    "clip_radius": 3.464201552963257,
+    "family": "tri",
+    "radius_requested": null,
+    "seed": 0
+  },
+  "name": "tri_c40_s0",
+  "num_edges": 102,
+  "num_nodes": 43
+}

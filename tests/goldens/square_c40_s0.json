@@ -1,0 +1,12 @@
+{
+  "meta": {
+    "cells_requested": 40,
+    "clip_radius": 3.535633905029297,
+    "family": "square",
+    "radius_requested": null,
+    "seed": 0
+  },
+  "name": "square_c40_s0",
+  "num_edges": 72,
+  "num_nodes": 44
+}
