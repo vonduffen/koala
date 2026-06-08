@@ -109,7 +109,8 @@ batching across mixed tilings/sizes are covered by the test suite.
 ## Tests
 
 ```bash
-uv run pytest        # rules (incl. a differential test vs an independent reference), tilings, nn
+uv sync --extra dev   # installs pytest (or: pip install -e ".[dev]")
+uv run pytest         # rules (incl. a differential test vs an independent reference), tilings, nn
 ```
 
 ## License
