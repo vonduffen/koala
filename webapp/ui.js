@@ -7,6 +7,7 @@
 
   let net = null, B = null, S = null, lastMove = null, prevMove = -1, busy = false, actx = null;
   let hist = [];   // undo stack: snapshots taken before each human turn / pass (state is immutable)
+  let wrHist = []; // black win-rate per move index (drives the win-rate graph)
   const STRENGTH = { Fast: 700, Normal: 1800, Strong: 4500 };
 
   // ---------- renderer (mirrors render.py interactive_svg) ----------
@@ -90,6 +91,35 @@
   const thinking = on => $("#scan").classList.toggle("on", on);
   const sleep = () => new Promise(r => setTimeout(r, 0));
 
+  // ---------- win-rate timeline (KaTrain-style) ----------
+  // black's win prob each move; red dot where the side that just moved lost ≥12% (a blunder).
+  function drawWRGraph(cur) {
+    const el = $("#wrgraph"); if (!el) return;
+    const W = 256, H = 74, pad = 6, m = Math.max(cur, 1);
+    const xs = i => pad + (i / m) * (W - 2 * pad), ys = w => pad + (1 - w) * (H - 2 * pad);
+    let path = "", dots = "";
+    for (let i = 0; i <= cur; i++) { const w = wrHist[i]; if (w == null) continue; path += (path ? "L" : "M") + xs(i).toFixed(1) + " " + ys(w).toFixed(1) + " "; }
+    for (let i = 1; i <= cur; i++) {
+      const w = wrHist[i], p = wrHist[i - 1]; if (w == null || p == null) continue;
+      const moverDelta = (i % 2 === 1) ? (w - p) : (p - w);   // mover's own win-rate change
+      if (moverDelta < -0.12) dots += `<circle cx="${xs(i).toFixed(1)}" cy="${ys(w).toFixed(1)}" r="3.4" fill="#e0796b" stroke="#1a0e0c" stroke-width="0.8"/>`;
+    }
+    const mid = ys(0.5).toFixed(1), cx = xs(cur).toFixed(1);
+    el.innerHTML = `<svg width="100%" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="border-radius:8px;background:#0b0d13;border:1px solid #2a313c">
+      <line x1="${pad}" y1="${mid}" x2="${W - pad}" y2="${mid}" stroke="#2a313c" stroke-dasharray="3 3"/>
+      <path d="${path}" fill="none" stroke="#00ffc2" stroke-width="2" vector-effect="non-scaling-stroke"/>
+      <line x1="${cx}" y1="${pad}" x2="${cx}" y2="${H - pad}" stroke="#ffffff22"/>${dots}</svg>`;
+  }
+  // one cheap net forward → black win-rate for the current position; record it and redraw the curve
+  function recordWR() {
+    if (!net) return;
+    const out = TG.forward(net, TG.encode(S, B).x, B.n, B.adj);
+    const bw = S.toMove === TG.BLACK ? 0.5 * (out.value + 1) : 0.5 * (1 - out.value);
+    wrHist[S.moveNum] = bw;
+    setWin(bw); $("#winpct").textContent = Math.round(bw * 100) + "%";
+    drawWRGraph(S.moveNum);
+  }
+
   // ---------- render state ----------
   function draw() {
     const legal = TG.legalMoves(S, B);
@@ -129,12 +159,12 @@
     busy = true;
     try {
       hist.push({ s: S, last: lastMove });          // snapshot before this turn (for undo)
-      S = TG.play(S, node, B); lastMove = node; draw();
+      S = TG.play(S, node, B); lastMove = node; draw(); recordWR();
       const opp = $("#opponent").value;
       if (opp === "engine" && !TG.isTerminal(S, B)) {
         thinking(true); await sleep();
         const r = await searchMove(STRENGTH[$("#strength").value], 600);
-        S = TG.play(S, r.move, B); lastMove = (r.move === B.pass ? null : r.move); thinking(false); draw();
+        S = TG.play(S, r.move, B); lastMove = (r.move === B.pass ? null : r.move); thinking(false); draw(); recordWR();
       }
       if ($("#auto").checked && !TG.isTerminal(S, B)) await analyze();
     } finally { busy = false; }
@@ -164,7 +194,7 @@
     $("#topmv").innerHTML = top.slice(0, 5).map((m, i) => `<span class="k">${i + 1}</span> ${Math.round(m.wr * 100)}% &middot; ${m.vis}v`).join("<br>");
   }
 
-  function newGame(key) { B = TG.makeBoard(BOARDS[key]); S = TG.newGame(B); lastMove = null; prevMove = 0; hist = []; setWin(0.5); draw(); }
+  function newGame(key) { B = TG.makeBoard(BOARDS[key]); S = TG.newGame(B); lastMove = null; prevMove = 0; hist = []; wrHist = []; setWin(0.5); draw(); recordWR(); }
 
   // ---------- wire up ----------
   function init() {
@@ -175,8 +205,9 @@
     $("#undo").onclick = () => {
       if (busy || !hist.length) return;
       const h = hist.pop(); S = h.s; lastMove = h.last; prevMove = S.moveNum; draw();
+      wrHist.length = S.moveNum + 1; recordWR();      // trim the win-rate curve to match
     };
-    $("#pass").onclick = async () => { if (busy) return; busy = true; try { hist.push({ s: S, last: lastMove }); S = TG.play(S, B.pass, B); lastMove = null; draw(); const opp = $("#opponent").value; if (opp === "engine" && !TG.isTerminal(S, B)) { thinking(true); await sleep(); const r = await searchMove(STRENGTH[$("#strength").value], 600); S = TG.play(S, r.move, B); lastMove = r.move === B.pass ? null : r.move; thinking(false); draw(); } } finally { busy = false; } };
+    $("#pass").onclick = async () => { if (busy) return; busy = true; try { hist.push({ s: S, last: lastMove }); S = TG.play(S, B.pass, B); lastMove = null; draw(); recordWR(); const opp = $("#opponent").value; if (opp === "engine" && !TG.isTerminal(S, B)) { thinking(true); await sleep(); const r = await searchMove(STRENGTH[$("#strength").value], 600); S = TG.play(S, r.move, B); lastMove = r.move === B.pass ? null : r.move; thinking(false); draw(); recordWR(); } } finally { busy = false; } };
     $("#reset").onclick = () => { if (!busy) newGame(sel.value); };
     sel.onchange = () => { if (!busy) newGame(sel.value); };
     sel.value = "penrose";

@@ -43,6 +43,8 @@ BODY = """
   </div>
   <div class="topmv" id="topmv"></div>
   <div class="msg" id="msg"></div>
+  <div class="lbl" style="margin-top:14px">Win-rate · Black</div>
+  <div id="wrgraph"></div>
 </div>
 """
 
