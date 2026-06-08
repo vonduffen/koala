@@ -36,7 +36,9 @@ TILINGS = [
     ("rhombitrihex", "Rhombitrihexagonal 3.4.6.4", 6.5),
     ("snub_square", "Snub square 3.3.4.3.4", 5.0),
     ("snub_hex", "Snub hexagonal 3.3.3.3.6", 6.0),
+    ("penrose_small", "Penrose (small, 5-fold)", 3.5),
     ("penrose", "Penrose (aperiodic, 5-fold)", 5.0),
+    ("penrose_med", "Penrose (medium, 5-fold)", 6.5),
     ("penrose_big", "Penrose (large, aperiodic)", 8.0),
 ]
 _LABELS = {k: lbl for k, lbl, _ in TILINGS}
