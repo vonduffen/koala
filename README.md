@@ -1,5 +1,8 @@
 # Euclidean Go
 
+[![CI](https://github.com/vonduffen/euclidean-go/actions/workflows/ci.yml/badge.svg)](https://github.com/vonduffen/euclidean-go/actions/workflows/ci.yml)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+
 **A geometry-blind Go engine that plays on *any* Euclidean tiling — square, hexagonal,
 triangular, the Archimedean tilings, even an aperiodic Penrose rhombus tiling — with a single
 neural network.**

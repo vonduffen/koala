@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+title: "Euclidean Go: a geometry-blind Go engine for arbitrary Euclidean tilings"
+message: "If you use this software, please cite it using these metadata."
+type: software
+authors:
+  - family-names: Dufour-Richard
+    given-names: Alexandre
+repository-code: "https://github.com/vonduffen/euclidean-go"
+url: "https://vonduffen.github.io/euclidean-go/"
+abstract: >-
+  A geometry-blind, AlphaZero-style Go engine that plays on any Euclidean tiling
+  — square, hexagonal, triangular, the 11 Archimedean tilings, and aperiodic
+  Penrose — with a single graph neural network. The rules engine, Monte-Carlo
+  Tree Search, and neural network operate on a board graph and never see
+  geometry, so one trained network plays every tiling, including ones held out
+  of training.
+keywords:
+  - go
+  - baduk
+  - alphazero
+  - reinforcement-learning
+  - graph-neural-networks
+  - monte-carlo-tree-search
+  - tilings
+  - penrose-tiling
+license: Apache-2.0
+version: "0.1.0"
+date-released: "2026-06-08"
