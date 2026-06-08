@@ -9,9 +9,9 @@ neural network.**
 
 ## ▶️ [**Play it now in your browser →**](https://vonduffen.github.io/euclidean-go/)
 
-No install, no sign-up. Runs entirely client-side (works offline after the first load), with the
-trained neural engine as your opponent on every tiling. *(Best on desktop; it's a ~4.5 MB page —
-give it a moment on the first load.)*
+No install, no sign-up. Works on desktop and mobile, runs entirely client-side (offline after
+the first load), with the trained neural engine as your opponent on every tiling. *(It's a
+~4.5 MB page, so give it a moment on the first load.)*
 
 [![Euclidean Go — a live game on a Penrose (aperiodic, 5-fold) tiling, with the real-time win-rate graph](docs/demo.gif)](https://vonduffen.github.io/euclidean-go/)
 
