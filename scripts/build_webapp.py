@@ -20,7 +20,7 @@ BODY = """
 </div>
 <div class="winrail" title="Black win probability"><div class="winrail-fill" id="winfill"></div></div>
 <div class="panel ctrl">
-  <div class="brand"><div class="logo"></div><div><h1>TILING·GO</h1><p>plays in your browser</p></div></div>
+  <div class="brand"><div class="logo"></div><div><h1>EUCLIDEAN·GO</h1><p>plays in your browser</p></div></div>
   <label>Substrate</label><select id="tiling"></select>
   <label>Opponent</label>
   <select id="opponent">
@@ -30,7 +30,7 @@ BODY = """
   <label>Engine strength</label>
   <select id="strength"><option selected>Fast</option><option>Normal</option><option>Strong</option></select>
   <button id="analyze" class="cta">⌖ Analyze position</button>
-  <div class="row"><button id="pass">Pass</button><button id="reset">New game</button></div>
+  <div class="row"><button id="pass">Pass</button><button id="undo">Undo</button><button id="reset">New game</button></div>
   <label class="chk"><input type="checkbox" id="auto"> Auto-analyze each move</label>
   <label class="chk"><input type="checkbox" id="snd" checked> Stone sound</label>
 </div>
@@ -57,7 +57,7 @@ def main() -> int:
     html = (
         "<!doctype html>\n<html lang=\"en\"><head>\n<meta charset=\"utf-8\">"
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
-        "<title>Tiling-Go</title>\n<style>\n" + css + "\n</style>\n</head>\n<body>\n"
+        "<title>Euclidean Go</title>\n<style>\n" + css + "\n</style>\n</head>\n<body>\n"
         + BODY +
         "\n<script>\n" + data + "\n</script>\n"
         "<script>\n" + engine + "\n</script>\n"

@@ -6,6 +6,7 @@
   const fmt = x => (Math.round(x * 100) / 100);
 
   let net = null, B = null, S = null, lastMove = null, prevMove = -1, busy = false, actx = null;
+  let hist = [];   // undo stack: snapshots taken before each human turn / pass (state is immutable)
   const STRENGTH = { Fast: 700, Normal: 1800, Strong: 4500 };
 
   // ---------- renderer (mirrors render.py interactive_svg) ----------
@@ -127,6 +128,7 @@
     if (!legal[node]) { $("#msg").textContent = "Illegal move"; return; }
     busy = true;
     try {
+      hist.push({ s: S, last: lastMove });          // snapshot before this turn (for undo)
       S = TG.play(S, node, B); lastMove = node; draw();
       const opp = $("#opponent").value;
       if (opp === "engine" && !TG.isTerminal(S, B)) {
@@ -162,7 +164,7 @@
     $("#topmv").innerHTML = top.slice(0, 5).map((m, i) => `<span class="k">${i + 1}</span> ${Math.round(m.wr * 100)}% &middot; ${m.vis}v`).join("<br>");
   }
 
-  function newGame(key) { B = TG.makeBoard(BOARDS[key]); S = TG.newGame(B); lastMove = null; prevMove = 0; setWin(0.5); draw(); }
+  function newGame(key) { B = TG.makeBoard(BOARDS[key]); S = TG.newGame(B); lastMove = null; prevMove = 0; hist = []; setWin(0.5); draw(); }
 
   // ---------- wire up ----------
   function init() {
@@ -170,7 +172,11 @@
     const sel = $("#tiling");
     sel.innerHTML = Object.keys(BOARDS).map(k => `<option value="${k}">${BOARDS[k].label}</option>`).join("");
     $("#analyze").onclick = async () => { if (busy) return; busy = true; try { await analyze(); } finally { busy = false; } };
-    $("#pass").onclick = async () => { if (busy) return; busy = true; try { S = TG.play(S, B.pass, B); lastMove = null; draw(); const opp = $("#opponent").value; if (opp === "engine" && !TG.isTerminal(S, B)) { thinking(true); await sleep(); const r = await searchMove(STRENGTH[$("#strength").value], 600); S = TG.play(S, r.move, B); lastMove = r.move === B.pass ? null : r.move; thinking(false); draw(); } } finally { busy = false; } };
+    $("#undo").onclick = () => {
+      if (busy || !hist.length) return;
+      const h = hist.pop(); S = h.s; lastMove = h.last; prevMove = S.moveNum; draw();
+    };
+    $("#pass").onclick = async () => { if (busy) return; busy = true; try { hist.push({ s: S, last: lastMove }); S = TG.play(S, B.pass, B); lastMove = null; draw(); const opp = $("#opponent").value; if (opp === "engine" && !TG.isTerminal(S, B)) { thinking(true); await sleep(); const r = await searchMove(STRENGTH[$("#strength").value], 600); S = TG.play(S, r.move, B); lastMove = r.move === B.pass ? null : r.move; thinking(false); draw(); } } finally { busy = false; } };
     $("#reset").onclick = () => { if (!busy) newGame(sel.value); };
     sel.onchange = () => { if (!busy) newGame(sel.value); };
     sel.value = "penrose";
