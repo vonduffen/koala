@@ -17,7 +17,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import numpy as np
 
 from ..rules import BLACK, WHITE, Board, GoState, IllegalMove
-from ..tilings import penrose, periodic, uniform
+from ..tilings import penrose, periodic, rosette, uniform
 from . import render
 
 # Tilings offered in the picker: (key, label, default radius).
@@ -40,6 +40,7 @@ TILINGS = [
     ("penrose", "Penrose (aperiodic, 5-fold)", 5.0),
     ("penrose_med", "Penrose (medium, 5-fold)", 6.5),
     ("penrose_big", "Penrose (large, aperiodic)", 8.0),
+    ("rosette", "Rosette (6-sector hexagon)", 6),
 ]
 _LABELS = {k: lbl for k, lbl, _ in TILINGS}
 _RADII = {k: r for k, _, r in TILINGS}
@@ -52,6 +53,8 @@ def _make_board(key: str, komi: float = 5.5) -> Board:
     if key.startswith("rect"):
         n = int(key[len("rect"):])
         graph = periodic.rectangular(n, n)
+    elif key.startswith("rosette"):
+        graph = rosette.generate(n=int(_RADII[key]))
     elif key.startswith("penrose"):
         graph = penrose.generate(radius=_RADII[key], symmetric=True)
     elif key in _PERIODIC_FAM:
