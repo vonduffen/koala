@@ -27,6 +27,11 @@ BODY = """
     <option value="engine">Neural engine (champion)</option>
     <option value="off">Human (hot-seat)</option>
   </select>
+  <label>Your colour</label>
+  <select id="playercolor">
+    <option value="black">Black (move first)</option>
+    <option value="white">White (engine opens)</option>
+  </select>
   <label>Engine strength</label>
   <select id="strength"><option selected>Fast</option><option>Normal</option><option>Strong</option></select>
   <button id="analyze" class="cta">⌖ Analyze position</button>
