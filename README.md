@@ -4,6 +4,12 @@
 triangular, the Archimedean tilings, even an aperiodic Penrose rhombus tiling — with a single
 neural network.**
 
+## ▶️ [**Play it now in your browser →**](https://vonduffen.github.io/euclidean-go/)
+
+No install, no sign-up. Runs entirely client-side (works offline after the first load), with the
+trained neural engine as your opponent on every tiling. *(Best on desktop; it's a ~4.5 MB page —
+give it a moment on the first load.)*
+
 <!-- A screenshot or GIF of the web UI goes well here. -->
 
 Go is really a *graph game*: stones live on the intersections of a board, connect along lines,

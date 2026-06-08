@@ -67,6 +67,11 @@ def main() -> int:
     out = WEB / "tilinggo.html"
     out.write_text(html)
     print(f"wrote {out}  ({len(html)/1e6:.2f} MB — open it in any browser, no install)")
+    # keep the GitHub Pages copy in sync (served at https://<user>.github.io/euclidean-go/)
+    pages = WEB.parent / "docs" / "index.html"
+    pages.parent.mkdir(exist_ok=True)
+    pages.write_text(html)
+    print(f"wrote {pages}  (GitHub Pages 'Play now' page)")
     # also drop a copy on the Desktop for convenience
     desktop = Path.home() / "Desktop" / "TilingGo.html"
     try:
