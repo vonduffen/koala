@@ -9,6 +9,13 @@
   let hist = [];   // undo stack: snapshots taken before each human turn / pass (state is immutable)
   let wrHist = []; // black win-rate per move index (drives the win-rate graph)
   let humanColor = TG.BLACK;  // which colour the human plays vs the engine (Black moves first)
+  let countedStart = false;   // fire one analytics "game started" event per game (hosted site only)
+
+  // GoatCounter custom event — a no-op unless the (hosted) page loaded the count.js script,
+  // so the offline single-file build never phones home.
+  function gcEvent(path, title) {
+    try { if (window.goatcounter && window.goatcounter.count) window.goatcounter.count({ path, title, event: true }); } catch (e) { /* ignore */ }
+  }
   const STRENGTH = { Fast: 700, Normal: 1800, Strong: 4500 };
 
   // ---------- renderer (mirrors render.py interactive_svg) ----------
@@ -172,6 +179,10 @@
     try {
       hist.push({ s: S, last: lastMove });          // snapshot before this turn (for undo)
       S = TG.play(S, node, B); lastMove = node; draw(); recordWR();
+      if (!countedStart) {                            // count a real "game played" (first human move)
+        countedStart = true; const k = $("#tiling").value;
+        gcEvent("game/" + k, "Game started: " + (BOARDS[k] ? BOARDS[k].label : k));
+      }
       if (opp === "engine") await engineReply();
       if ($("#auto").checked && !TG.isTerminal(S, B)) await analyze();
     } finally { busy = false; }
@@ -203,7 +214,7 @@
 
   function newGame(key) {
     B = TG.makeBoard(BOARDS[key]); S = TG.newGame(B);
-    lastMove = null; prevMove = 0; hist = []; wrHist = []; setWin(0.5); draw(); recordWR();
+    lastMove = null; prevMove = 0; hist = []; wrHist = []; countedStart = false; setWin(0.5); draw(); recordWR();
     // if the human chose White, the engine (Black) opens the game
     if ($("#opponent").value === "engine" && humanColor === TG.WHITE) {
       busy = true;

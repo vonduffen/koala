@@ -72,13 +72,17 @@ def main() -> int:
         "</body></html>\n"
     )
     out = WEB / "tilinggo.html"
-    out.write_text(html)
+    out.write_text(html)   # portable single-file: NO analytics (stays fully offline)
     print(f"wrote {out}  ({len(html)/1e6:.2f} MB — open it in any browser, no install)")
-    # keep the GitHub Pages copy in sync (served at https://<user>.github.io/euclidean-go/)
+    # GitHub Pages copy: same app + a privacy-friendly (cookieless) GoatCounter snippet, so we can
+    # see visits + a "game started" custom event. Only the HOSTED copy phones home, never the download.
+    gc = ('<script data-goatcounter="https://vonduffen.goatcounter.com/count" '
+          'async src="//gc.zgo.at/count.js"></script>\n')
+    pages_html = html.replace("</head>", gc + "</head>", 1)
     pages = WEB.parent / "docs" / "index.html"
     pages.parent.mkdir(exist_ok=True)
-    pages.write_text(html)
-    print(f"wrote {pages}  (GitHub Pages 'Play now' page)")
+    pages.write_text(pages_html)
+    print(f"wrote {pages}  (GitHub Pages 'Play now' page, with analytics)")
     # also drop a copy on the Desktop for convenience
     desktop = Path.home() / "Desktop" / "TilingGo.html"
     try:
