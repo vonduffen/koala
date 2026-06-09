@@ -180,7 +180,7 @@
       hist.push({ s: S, last: lastMove });          // snapshot before this turn (for undo)
       S = TG.play(S, node, B); lastMove = node; draw(); recordWR();
       if (!countedStart) {                            // count a real "game played" (first human move)
-        countedStart = true; const k = $("#tiling").value;
+        countedStart = true; const k = $("#variant").value;
         gcEvent("game/" + k, "Game started: " + (BOARDS[k] ? BOARDS[k].label : k));
       }
       if (opp === "engine") await engineReply();
