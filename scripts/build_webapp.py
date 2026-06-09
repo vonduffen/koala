@@ -21,7 +21,10 @@ BODY = """
 <div class="winrail" title="Black win probability"><div class="winrail-fill" id="winfill"></div></div>
 <div class="panel ctrl">
   <div class="brand"><div class="logo"></div><div><h1>EUCLIDEAN·GO</h1><p>plays in your browser</p></div></div>
-  <label>Substrate</label><select id="tiling"></select>
+  <label>Substrate</label>
+  <select id="family"></select>
+  <select id="variant" style="margin-top:6px"></select>
+  <button id="random" style="margin-top:6px">🎲 Random board</button>
   <label>Opponent</label>
   <select id="opponent">
     <option value="engine">Neural engine (champion)</option>

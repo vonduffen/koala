@@ -222,11 +222,34 @@
     }
   }
 
+  // ---------- board catalogue → family + size/variant groups ----------
+  function buildFamilies(keys) {
+    const fam = {}, order = [];
+    const add = (f, key, sub) => { if (!fam[f]) { fam[f] = []; order.push(f); } fam[f].push([key, sub]); };
+    const SUB = { rect9: ["Square", "9×9"], rect13: ["Square", "13×13"], rect19: ["Square", "19×19"], square: ["Square", "disc"],
+      hexagonal: ["Hexagonal", "standard"], hex_big: ["Hexagonal", "large"],
+      triangular: ["Triangular", "standard"], tri_big: ["Triangular", "large"],
+      penrose_small: ["Penrose", "small"], penrose: ["Penrose", "medium"], penrose_med: ["Penrose", "large"], penrose_big: ["Penrose", "x-large"],
+      rosette: ["Rosette", "standard"] };
+    for (const k of keys) {
+      if (SUB[k]) add(SUB[k][0], k, SUB[k][1]);
+      else if (k.indexOf("twou") === 0) add("2-uniform", k, (BOARDS[k].label || k).replace(/^2-uniform\s*/, ""));
+      else add("Archimedean", k, BOARDS[k].label || k);   // trihexagonal, trunc_*, rhombitrihex, snub_*
+    }
+    return order.map(f => ({ family: f, items: fam[f] }));
+  }
+
   // ---------- wire up ----------
   function init() {
     net = TG.loadNet(WEIGHTS_B64, CFG);
-    const sel = $("#tiling");
-    sel.innerHTML = Object.keys(BOARDS).map(k => `<option value="${k}">${BOARDS[k].label}</option>`).join("");
+    const FAMS = buildFamilies(Object.keys(BOARDS));
+    const famSel = $("#family"), varSel = $("#variant");
+    famSel.innerHTML = FAMS.map((g, i) => `<option value="${i}">${g.family}</option>`).join("");
+    const fillVariants = (fi) => { varSel.innerHTML = FAMS[fi].items.map(([k, sub]) => `<option value="${k}">${sub}</option>`).join(""); };
+    const currentKey = () => varSel.value;
+    const selectKey = (key) => {                          // point both dropdowns at a board key
+      for (let i = 0; i < FAMS.length; i++) if (FAMS[i].items.some(([k]) => k === key)) { famSel.value = i; fillVariants(i); varSel.value = key; return; }
+    };
     $("#analyze").onclick = async () => { if (busy) return; busy = true; try { await analyze(); } finally { busy = false; } };
     $("#undo").onclick = () => {
       if (busy || !hist.length) return;
@@ -234,15 +257,22 @@
       wrHist.length = S.moveNum + 1; recordWR();      // trim the win-rate curve to match
     };
     $("#pass").onclick = async () => { if (busy) return; busy = true; try { hist.push({ s: S, last: lastMove }); S = TG.play(S, B.pass, B); lastMove = null; draw(); recordWR(); if ($("#opponent").value === "engine") await engineReply(); } finally { busy = false; } };
-    $("#reset").onclick = () => { if (!busy) newGame(sel.value); };
-    sel.onchange = () => { if (!busy) newGame(sel.value); };
+    $("#reset").onclick = () => { if (!busy) newGame(currentKey()); };
+    famSel.onchange = () => { if (busy) return; fillVariants(+famSel.value); newGame(currentKey()); };
+    varSel.onchange = () => { if (!busy) newGame(currentKey()); };
+    $("#random").onclick = () => {                         // random board for a fresh game
+      if (busy) return;
+      const keys = Object.keys(BOARDS), cur = currentKey(); let k = cur;
+      for (let t = 0; t < 25 && k === cur; t++) k = keys[(Math.random() * keys.length) | 0];
+      selectKey(k); newGame(k);
+    };
     // colour choice + opponent change take effect from a fresh game
     const applyColor = () => { humanColor = $("#playercolor").value === "white" ? TG.WHITE : TG.BLACK; };
-    $("#playercolor").onchange = () => { if (busy) return; applyColor(); newGame(sel.value); };
-    $("#opponent").onchange = () => { if (!busy) newGame(sel.value); };
+    $("#playercolor").onchange = () => { if (busy) return; applyColor(); newGame(currentKey()); };
+    $("#opponent").onchange = () => { if (!busy) newGame(currentKey()); };
     applyColor();
-    sel.value = "penrose";
-    newGame("penrose");
+    selectKey(BOARDS["penrose"] ? "penrose" : Object.keys(BOARDS)[0]);
+    newGame(currentKey());
   }
   if (document.readyState !== "loading") init(); else document.addEventListener("DOMContentLoaded", init);
 })();
