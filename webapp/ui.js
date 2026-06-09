@@ -39,7 +39,19 @@
     '<filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter>' +
     '</defs>';
 
+  // board colour palettes per theme (the SVG is regenerated each draw, so it reads the live theme)
+  const THEMES = {
+    dark:  { boardBg: "url(#bgs)", line: "#454c5e", lineOp: 0.85, legal: "#5a6478", last: "#00ffc2",
+             bStroke: "#000000", wStroke: "#aab0c0", ownB: "#0a0d10", ownW: "#f4f4f2",
+             gBg: "#0b0d13", gLine: "#2a313c", gPath: "#00ffc2" },
+    light: { boardBg: "#efe8d6", line: "#3d4350", lineOp: 0.92, legal: "#7a8290", last: "#0a9c79",
+             bStroke: "#14171d", wStroke: "#586071", ownB: "#2b3140", ownW: "#9fb2d6",
+             gBg: "#f4efe3", gLine: "#cbc3b0", gPath: "#0a9c79" },
+  };
+  const theme = () => THEMES[document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark"];
+
   function renderSVG(board, colors, last, legal, analysis) {
+    const T = theme();
     const W = 760, margin = 26, coords = board.coords, n = board.n;
     const spc = minSpacing(coords), pad = 0.55 * spc;
     let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
@@ -50,26 +62,26 @@
     const tx = x => margin + (x - minx) * scale, ty = y => margin + (maxy - y) * scale;
     const rS = 0.46 * spc * scale, rH = 0.5 * spc * scale;
     const o = [`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`, DEFS,
-      `<rect width="${W}" height="${H}" rx="18" fill="url(#bgs)"/>`,
+      `<rect width="${W}" height="${H}" rx="18" fill="${T.boardBg}"/>`,
       `<rect width="${W}" height="${H}" rx="18" filter="url(#grain)" opacity="0.045"/>`];
     for (let e = 0; e < board.edges.length; e += 2) {
       const a = board.edges[e], b = board.edges[e + 1];
-      o.push(`<line x1="${fmt(tx(coords[a][0]))}" y1="${fmt(ty(coords[a][1]))}" x2="${fmt(tx(coords[b][0]))}" y2="${fmt(ty(coords[b][1]))}" stroke="#454c5e" stroke-width="1.1" stroke-linecap="round" opacity="0.85"/>`);
+      o.push(`<line x1="${fmt(tx(coords[a][0]))}" y1="${fmt(ty(coords[a][1]))}" x2="${fmt(tx(coords[b][0]))}" y2="${fmt(ty(coords[b][1]))}" stroke="${T.line}" stroke-width="1.1" stroke-linecap="round" opacity="${T.lineOp}"/>`);
     }
     if (legal) for (let i = 0; i < n; i++) if (colors[i] === 0 && legal[i])
-      o.push(`<circle cx="${fmt(tx(coords[i][0]))}" cy="${fmt(ty(coords[i][1]))}" r="${fmt(rS * 0.2)}" fill="#5a6478" opacity="0.16"/>`);
+      o.push(`<circle cx="${fmt(tx(coords[i][0]))}" cy="${fmt(ty(coords[i][1]))}" r="${fmt(rS * 0.2)}" fill="${T.legal}" opacity="0.16"/>`);
     for (let i = 0; i < n; i++) {
       const c = colors[i]; if (c === 0) continue;
       const x = tx(coords[i][0]), y = ty(coords[i][1]);
-      o.push(`<circle cx="${fmt(x)}" cy="${fmt(y)}" r="${fmt(rS)}" fill="${c === 1 ? "url(#bz)" : "url(#wz)"}" stroke="${c === 1 ? "#000" : "#aab0c0"}" stroke-width="0.7" filter="url(#sh)"/>`);
-      if (last === i) o.push(`<circle cx="${fmt(x)}" cy="${fmt(y)}" r="${fmt(rS * 0.4)}" fill="none" stroke="#00ffc2" stroke-width="2.2" filter="url(#gl)"/>`);
+      o.push(`<circle cx="${fmt(x)}" cy="${fmt(y)}" r="${fmt(rS)}" fill="${c === 1 ? "url(#bz)" : "url(#wz)"}" stroke="${c === 1 ? T.bStroke : T.wStroke}" stroke-width="0.7" filter="url(#sh)"/>`);
+      if (last === i) o.push(`<circle cx="${fmt(x)}" cy="${fmt(y)}" r="${fmt(rS * 0.4)}" fill="none" stroke="${T.last}" stroke-width="2.2" filter="url(#gl)"/>`);
     }
     if (analysis) {
       const own = analysis.ownership;
       if (own) for (let i = 0; i < n; i++) {
         if (colors[i] !== 0) continue; const v = own[i]; if (Math.abs(v) < 0.18) continue;
         const x = tx(coords[i][0]), y = ty(coords[i][1]), sq = rS * 1.15;
-        o.push(`<rect x="${fmt(x - sq / 2)}" y="${fmt(y - sq / 2)}" width="${fmt(sq)}" height="${fmt(sq)}" rx="2" fill="${v > 0 ? "#0a0d10" : "#f4f4f2"}" opacity="${fmt(Math.min(0.5, 0.55 * Math.abs(v)))}"/>`);
+        o.push(`<rect x="${fmt(x - sq / 2)}" y="${fmt(y - sq / 2)}" width="${fmt(sq)}" height="${fmt(sq)}" rx="2" fill="${v > 0 ? T.ownB : T.ownW}" opacity="${fmt(Math.min(0.5, 0.55 * Math.abs(v)))}"/>`);
       }
       for (const m of (analysis.moves || [])) {
         const i = m.node; if (i >= n) continue;
@@ -112,11 +124,11 @@
       const moverDelta = (i % 2 === 1) ? (w - p) : (p - w);   // mover's own win-rate change
       if (moverDelta < -0.12) dots += `<circle cx="${xs(i).toFixed(1)}" cy="${ys(w).toFixed(1)}" r="3.4" fill="#e0796b" stroke="#1a0e0c" stroke-width="0.8"/>`;
     }
-    const mid = ys(0.5).toFixed(1), cx = xs(cur).toFixed(1);
-    el.innerHTML = `<svg width="100%" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="border-radius:8px;background:#0b0d13;border:1px solid #2a313c">
-      <line x1="${pad}" y1="${mid}" x2="${W - pad}" y2="${mid}" stroke="#2a313c" stroke-dasharray="3 3"/>
-      <path d="${path}" fill="none" stroke="#00ffc2" stroke-width="2" vector-effect="non-scaling-stroke"/>
-      <line x1="${cx}" y1="${pad}" x2="${cx}" y2="${H - pad}" stroke="#ffffff22"/>${dots}</svg>`;
+    const mid = ys(0.5).toFixed(1), cx = xs(cur).toFixed(1), T = theme();
+    el.innerHTML = `<svg width="100%" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="border-radius:8px;background:${T.gBg};border:1px solid ${T.gLine}">
+      <line x1="${pad}" y1="${mid}" x2="${W - pad}" y2="${mid}" stroke="${T.gLine}" stroke-dasharray="3 3"/>
+      <path d="${path}" fill="none" stroke="${T.gPath}" stroke-width="2" vector-effect="non-scaling-stroke"/>
+      <line x1="${cx}" y1="${pad}" x2="${cx}" y2="${H - pad}" stroke="${T.line}" opacity="0.25"/>${dots}</svg>`;
   }
   // one cheap net forward → black win-rate for the current position; record it and redraw the curve
   function recordWR() {
@@ -222,27 +234,12 @@
     }
   }
 
-  // ---------- board catalogue → family + size/variant groups ----------
-  function buildFamilies(keys) {
-    const fam = {}, order = [];
-    const add = (f, key, sub) => { if (!fam[f]) { fam[f] = []; order.push(f); } fam[f].push([key, sub]); };
-    const SUB = { rect9: ["Square", "9×9"], rect13: ["Square", "13×13"], rect19: ["Square", "19×19"], square: ["Square", "disc"],
-      hexagonal: ["Hexagonal", "standard"], hex_big: ["Hexagonal", "large"],
-      triangular: ["Triangular", "standard"], tri_big: ["Triangular", "large"],
-      penrose_small: ["Penrose", "small"], penrose: ["Penrose", "medium"], penrose_med: ["Penrose", "large"], penrose_big: ["Penrose", "x-large"],
-      rosette: ["Rosette", "standard"] };
-    for (const k of keys) {
-      if (SUB[k]) add(SUB[k][0], k, SUB[k][1]);
-      else if (k.indexOf("twou") === 0) add("2-uniform", k, (BOARDS[k].label || k).replace(/^2-uniform\s*/, ""));
-      else add("Archimedean", k, BOARDS[k].label || k);   // trihexagonal, trunc_*, rhombitrihex, snub_*
-    }
-    return order.map(f => ({ family: f, items: fam[f] }));
-  }
-
   // ---------- wire up ----------
   function init() {
     net = TG.loadNet(WEIGHTS_B64, CFG);
-    const FAMS = buildFamilies(Object.keys(BOARDS));
+    // FAMILIES (baked by export_webapp from the catalogue) = [{family, items:[[key, size], ...]}, ...]
+    const FAMS = (typeof FAMILIES !== "undefined" && FAMILIES.length)
+      ? FAMILIES : [{ family: "Boards", items: Object.keys(BOARDS).map(k => [k, BOARDS[k].label || k]) }];
     const famSel = $("#family"), varSel = $("#variant");
     famSel.innerHTML = FAMS.map((g, i) => `<option value="${i}">${g.family}</option>`).join("");
     const fillVariants = (fi) => { varSel.innerHTML = FAMS[fi].items.map(([k, sub]) => `<option value="${k}">${sub}</option>`).join(""); };
@@ -271,7 +268,19 @@
     $("#playercolor").onchange = () => { if (busy) return; applyColor(); newGame(currentKey()); };
     $("#opponent").onchange = () => { if (!busy) newGame(currentKey()); };
     applyColor();
-    selectKey(BOARDS["penrose"] ? "penrose" : Object.keys(BOARDS)[0]);
+    // theme (light/dark): a manual choice (persisted) wins; otherwise follow the device's setting,
+    // so a phone in bright/outdoor light mode opens light, while a dark-mode system opens dark.
+    const applyTheme = t => document.documentElement.setAttribute("data-theme", t);
+    let savedTheme = null; try { savedTheme = localStorage.getItem("eg-theme"); } catch (e) {}
+    const sysLight = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
+    const startTheme = savedTheme || (sysLight ? "light" : "dark");
+    applyTheme(startTheme); $("#light").checked = startTheme === "light";
+    $("#light").onchange = () => {
+      const t = $("#light").checked ? "light" : "dark";
+      applyTheme(t); try { localStorage.setItem("eg-theme", t); } catch (e) {}
+      draw(); if (S) drawWRGraph(S.moveNum);
+    };
+    selectKey(BOARDS["penrose_medium"] ? "penrose_medium" : Object.keys(BOARDS)[0]);
     newGame(currentKey());
   }
   if (document.readyState !== "loading") init(); else document.addEventListener("DOMContentLoaded", init);

@@ -25,8 +25,20 @@ from tilinggo.sit.checkpoint import load_checkpoint  # noqa: E402
 from tilinggo.ui import server  # noqa: E402 (imports board builders / catalogue; starts no server)
 
 CKPT = "results/universal/champion.pt"
-# catalogue boards to embed (skip 19x19 — too slow for a pure-JS MCTS)
-KEYS = [k for k, _, _ in server.TILINGS if k != "rect19"]
+# every catalogue board (all sizes are tuned ≤ ~250 nodes, fine for the pure-JS MCTS)
+KEYS = [k for k, _, _ in server.TILINGS]
+
+
+def families_struct():
+    """Family → ordered [[key, size_label], ...] for the webapp's grouped picker (catalogue order)."""
+    fams, cur = [], None
+    for key, _, _ in server.TILINGS:
+        fam, size = server._FAMILY_OF[key]
+        if cur is None or cur["family"] != fam:
+            cur = {"family": fam, "items": []}
+            fams.append(cur)
+        cur["items"].append([key, size])
+    return fams
 
 
 def b64f(arr) -> str:
@@ -86,13 +98,14 @@ def main() -> int:
         f"const CFG = {{in_dim: {net.cfg.in_dim}, hidden: {net.cfg.hidden}, blocks: {net.cfg.blocks}}};\n"
         f"const WEIGHTS_B64 = \"{weight_blob(net)}\";\n"
         f"const BOARDS = {json.dumps(boards)};\n"
-        "if (typeof module !== 'undefined') module.exports = {CFG, WEIGHTS_B64, BOARDS};\n"
+        f"const FAMILIES = {json.dumps(families_struct())};\n"
+        "if (typeof module !== 'undefined') module.exports = {CFG, WEIGHTS_B64, BOARDS, FAMILIES};\n"
     )
     (out / "data.js").write_text(data_js)
     print(f"wrote {out/'data.js'}  ({len(data_js)/1e6:.2f} MB, {len(boards)} boards)")
 
     # ---- node cross-check test case: a real position labelled by PyTorch ----
-    board = server._make_board("rect9", komi=5.5)
+    board = server._make_board("square_small", komi=5.5)
     rng = np.random.default_rng(0)
     s = board.new_game()
     for _ in range(8):
@@ -103,7 +116,7 @@ def main() -> int:
         o = net.forward(encode_states([st]))
     own = torch.softmax(o["ownership"][0], dim=-1).numpy()
     tc = {
-        "key": "rect9", "n": board.n, "to_move": int(st.to_move), "move_num": int(st.move_num),
+        "key": "square_small", "n": board.n, "to_move": int(st.to_move), "move_num": int(st.move_num),
         "colors": st.colors.astype(int).tolist(),
         "policy": o["policy_logits"][0].numpy().astype(float).tolist(),   # length n+1 (pre-softmax, masked)
         "value": float(o["value"][0]),

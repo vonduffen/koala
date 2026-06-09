@@ -88,3 +88,20 @@ button:active { transform:translateY(1px); }
   .ctrl, .info { top:auto; left:auto; right:auto; bottom:auto; width:auto; }
   .num { font-size:26px; }
 }
+
+/* ---- light mode (toggle sets html[data-theme="light"]); for outdoor readability ---- */
+html[data-theme="light"] {
+  --bg:#e7e1d2; --panel:rgba(255,253,247,0.88); --line:rgba(0,0,0,0.13);
+  --text:#1c2230; --muted:#5f6877; --accent:#0aa97f; --accent-dim:rgba(10,169,127,0.16);
+  color-scheme:light;
+}
+html[data-theme="light"] body {
+  background:radial-gradient(1200px 820px at 50% 42%, #f5f1e6 0%, var(--bg) 62%), var(--bg);
+}
+/* light mode: form controls + low-contrast text (the panel is already var-driven) */
+html[data-theme="light"] select { background-color:#fbfaf4; }
+html[data-theme="light"] button { background:#f1ece0; }
+html[data-theme="light"] button:hover { background:#e9e3d4; border-color:rgba(10,169,127,0.45); }
+html[data-theme="light"] .chk { color:var(--muted); }
+html[data-theme="light"] .topmv { color:var(--muted); }
+html[data-theme="light"] .brand p { color:var(--muted); }

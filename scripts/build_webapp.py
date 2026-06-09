@@ -41,6 +41,7 @@ BODY = """
   <div class="row"><button id="pass">Pass</button><button id="undo">Undo</button><button id="reset">New game</button></div>
   <label class="chk"><input type="checkbox" id="auto"> Auto-analyze each move</label>
   <label class="chk"><input type="checkbox" id="snd" checked> Stone sound</label>
+  <label class="chk"><input type="checkbox" id="light"> ☀ Light mode</label>
 </div>
 <div class="panel info">
   <div class="turnrow"><span class="dot" id="turndot"></span><span id="turn">—</span>

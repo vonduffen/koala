@@ -17,51 +17,58 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import numpy as np
 
 from ..rules import BLACK, WHITE, Board, GoState, IllegalMove
-from ..tilings import penrose, periodic, rosette, uniform
+from ..tilings import penrose, periodic, rosette, uniform, uniform2
 from . import render
 
-# Tilings offered in the picker: (key, label, default radius).
-TILINGS = [
-    ("rect9", "Square 9×9 (classic)", None),
-    ("rect13", "Square 13×13 (large)", None),
-    ("rect19", "Square 19×19 (full board!)", None),
-    ("square", "Square (disc)", 6.0),
-    ("hexagonal", "Hexagonal", 6.0),
-    ("hex_big", "Hexagonal (large)", 9.0),
-    ("triangular", "Triangular", 5.0),
-    ("tri_big", "Triangular (large)", 8.0),
-    ("trihexagonal", "Trihexagonal 3.6.3.6", 4.5),
-    ("trunc_square", "Truncated square 4.8.8", 7.0),
-    ("trunc_hex", "Truncated hex 3.12.12", 9.0),
-    ("rhombitrihex", "Rhombitrihexagonal 3.4.6.4", 6.5),
-    ("snub_square", "Snub square 3.3.4.3.4", 5.0),
-    ("snub_hex", "Snub hexagonal 3.3.3.3.6", 6.0),
-    ("penrose_small", "Penrose (small, 5-fold)", 3.5),
-    ("penrose", "Penrose (aperiodic, 5-fold)", 5.0),
-    ("penrose_med", "Penrose (medium, 5-fold)", 6.5),
-    ("penrose_big", "Penrose (large, aperiodic)", 8.0),
-    ("rosette", "Rosette (6-sector hexagon)", 6),
+# The board catalogue as FAMILIES, each with a builder and a set of sizes. Every grid type offers
+# the same size choices (small / medium / large; Penrose adds x-large). Sizes are tuned to stay
+# webapp-friendly (≤ ~250 nodes). Each entry: (family label, family key, build(param) -> graph,
+# [(size label, param), ...]); keys are f"{fam_key}_{size}" (e.g. "square_small", "penrose_xlarge").
+_CATALOG = [
+    ("Square",                 "square",  lambda p: periodic.rectangular(int(p), int(p)),
+     [("small", 9), ("medium", 13), ("large", 15)]),
+    ("Hexagonal",              "hex",     lambda p: periodic.generate("hex", radius=p),
+     [("small", 5), ("medium", 7), ("large", 8)]),
+    ("Triangular",             "tri",     lambda p: periodic.generate("tri", radius=p),
+     [("small", 4), ("medium", 6), ("large", 7)]),
+    ("Trihexagonal 3.6.3.6",   "trihex",  lambda p: uniform.generate("trihexagonal", radius=p),
+     [("small", 4), ("medium", 6), ("large", 8)]),
+    ("Truncated square 4.8.8", "truncsq", lambda p: uniform.generate("trunc_square", radius=p),
+     [("small", 5), ("medium", 7), ("large", 8)]),
+    ("Truncated hex 3.12.12",  "trunchex", lambda p: uniform.generate("trunc_hex", radius=p),
+     [("small", 5), ("medium", 6), ("large", 7)]),
+    ("Rhombitrihex 3.4.6.4",   "rhombi",  lambda p: uniform.generate("rhombitrihex", radius=p),
+     [("small", 4), ("medium", 6), ("large", 8)]),
+    ("Snub square 3.3.4.3.4",  "snubsq",  lambda p: uniform.generate("snub_square", radius=p),
+     [("small", 4), ("medium", 6), ("large", 8)]),
+    ("Snub hex 3.3.3.3.6",     "snubhex", lambda p: uniform.generate("snub_hex", radius=p),
+     [("small", 4), ("medium", 6), ("large", 8)]),
+    ("Penrose (5-fold)",       "penrose", lambda p: penrose.generate(radius=p, symmetric=True),
+     [("small", 3.5), ("medium", 5), ("large", 6.5), ("x-large", 8)]),
+    ("Rosette (6-sector)",     "rosette", lambda p: rosette.generate(n=int(p)),
+     [("small", 4), ("medium", 5), ("large", 6)]),
+    ("2-uniform (3⁶; 3³.4²)",  "twou03",  lambda p: uniform2.generate("twou03", radius=p),
+     [("small", 5), ("medium", 6), ("large", 7)]),
+    ("2-uniform (3³.4²; 4⁴)",  "twou12",  lambda p: uniform2.generate("twou12", radius=p),
+     [("small", 5), ("medium", 6), ("large", 7)]),
 ]
+
+# Flatten the catalogue into the per-board structures the rest of the app uses.
+_BUILDERS: dict = {}            # key -> (builder, param)
+_FAMILY_OF: dict = {}           # key -> (family label, size label) — for the UI's grouped picker
+TILINGS = []                    # (key, label, None)
+for _fam_label, _fam_key, _builder, _sizes in _CATALOG:
+    for _size_label, _param in _sizes:
+        _key = f"{_fam_key}_{_size_label.replace('-', '')}"
+        _BUILDERS[_key] = (_builder, _param)
+        _FAMILY_OF[_key] = (_fam_label, _size_label)
+        TILINGS.append((_key, f"{_fam_label} · {_size_label}", None))
 _LABELS = {k: lbl for k, lbl, _ in TILINGS}
-_RADII = {k: r for k, _, r in TILINGS}
-# periodic-family keys (incl. "large" variants) → generator family
-_PERIODIC_FAM = {"square": "square", "triangular": "tri", "tri_big": "tri",
-                 "hexagonal": "hex", "hex_big": "hex"}
 
 
 def _make_board(key: str, komi: float = 5.5) -> Board:
-    if key.startswith("rect"):
-        n = int(key[len("rect"):])
-        graph = periodic.rectangular(n, n)
-    elif key.startswith("rosette"):
-        graph = rosette.generate(n=int(_RADII[key]))
-    elif key.startswith("penrose"):
-        graph = penrose.generate(radius=_RADII[key], symmetric=True)
-    elif key in _PERIODIC_FAM:
-        graph = periodic.generate(_PERIODIC_FAM[key], radius=_RADII[key])
-    else:
-        graph = uniform.generate(key, radius=_RADII[key])
-    return Board(graph, komi=komi)
+    builder, param = _BUILDERS[key]
+    return Board(builder(param), komi=komi)
 
 
 _NET_EVAL = None
@@ -94,13 +101,13 @@ def _trained_evaluator():
 class Game:
     """A single in-memory game with an undo stack."""
 
-    def __init__(self, key: str = "rect9"):
+    def __init__(self, key: str = "penrose_medium"):
         self.lock = threading.Lock()
         self.reset(key)
 
     def reset(self, key: str):
         if key not in _LABELS:
-            key = "rect9"
+            key = "penrose_medium"
         self.key = key
         self.board = _make_board(key)
         self.history: list[GoState] = [self.board.new_game()]
@@ -299,7 +306,7 @@ class Handler(BaseHTTPRequestHandler):
             elif self.path == "/api/analyze":
                 self._json(GAME.analyze())
             elif self.path == "/api/reset":
-                GAME.reset(body.get("key", "rect9"))
+                GAME.reset(body.get("key", "penrose_medium"))
                 self._json(GAME.snapshot())
             else:
                 self._send(404, "not found", "text/plain")
