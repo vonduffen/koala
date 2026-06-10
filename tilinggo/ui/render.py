@@ -136,6 +136,7 @@ def interactive_svg(
     analysis=None,
     width: int = 760,
     margin: float = 26.0,
+    theme: str = "dark",
 ) -> str:
     """Render a *playable* goban: grid lines, clickable intersections, and stones on vertices.
 
@@ -149,6 +150,16 @@ def interactive_svg(
         colors = np.zeros(n, dtype=np.int8)
     if n == 0:
         return f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{width}"></svg>'
+
+    # theme palette (board is rendered server-side, so colours are chosen here)
+    P = {
+        "dark":  dict(bg="url(#bgs)", line="#454c5e", lineop="0.85", legal="#5a6478",
+                      be="#000000", we="#aab0c0", last="#00ffc2", ownb="#0a0d10", ownw="#f4f4f2"),
+        "light": dict(bg="#efe8d6", line="#3d4350", lineop="0.92", legal="#7a8290",
+                      be="#14171d", we="#586071", last="#0a9c79", ownb="#2b3140", ownw="#9fb2d6"),
+    }.get(theme, None) or {
+        "bg": "url(#bgs)", "line": "#454c5e", "lineop": "0.85", "legal": "#5a6478",
+        "be": "#000000", "we": "#aab0c0", "last": "#00ffc2", "ownb": "#0a0d10", "ownw": "#f4f4f2"}
 
     # size stones by the true nearest-neighbour spacing so they never overlap, even where
     # non-adjacent vertices crowd together (dense/aperiodic tilings like large Penrose patches)
@@ -182,7 +193,7 @@ def interactive_svg(
         '<filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" '
         'stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter>'
         '</defs>'
-        f'<rect width="{width}" height="{height}" rx="18" fill="url(#bgs)"/>'
+        f'<rect width="{width}" height="{height}" rx="18" fill="{P["bg"]}"/>'
         f'<rect width="{width}" height="{height}" rx="18" filter="url(#grain)" opacity="0.045"/>',
     ]
     # grid lines (subtle cool-grey on the dark board)
@@ -192,7 +203,7 @@ def interactive_svg(
         out.append(
             f'<line x1="{_fmt(tx(ax))}" y1="{_fmt(ty(ay))}" '
             f'x2="{_fmt(tx(bx))}" y2="{_fmt(ty(by))}" '
-            f'stroke="#454c5e" stroke-width="1.1" stroke-linecap="round" opacity="0.85"/>'
+            f'stroke="{P["line"]}" stroke-width="1.1" stroke-linecap="round" opacity="{P["lineop"]}"/>'
         )
     # faint legal-move dots on empty intersections
     if legal is not None:
@@ -201,7 +212,7 @@ def interactive_svg(
                 x, y = bg.coords[i]
                 out.append(
                     f'<circle class="legaldot" cx="{_fmt(tx(x))}" cy="{_fmt(ty(y))}" '
-                    f'r="{_fmt(r_stone * 0.20)}" fill="#5a6478" opacity="0.16"/>')
+                    f'r="{_fmt(r_stone * 0.20)}" fill="{P["legal"]}" opacity="0.16"/>')
     # stones — gradient fills + soft drop shadow for depth
     for i in range(n):
         c = int(colors[i])
@@ -209,14 +220,14 @@ def interactive_svg(
             continue
         x, y = bg.coords[i]
         fill = "url(#bz)" if c == 1 else "url(#wz)"
-        edge = "#000000" if c == 1 else "#aab0c0"
+        edge = P["be"] if c == 1 else P["we"]
         out.append(
             f'<circle class="stone" cx="{_fmt(tx(x))}" cy="{_fmt(ty(y))}" r="{_fmt(r_stone)}" '
             f'fill="{fill}" stroke="{edge}" stroke-width="0.7" filter="url(#sh)"/>')
-        if last_move == i:  # accent-cyan glowing ring on the last move
+        if last_move == i:  # accent ring on the last move
             out.append(
                 f'<circle cx="{_fmt(tx(x))}" cy="{_fmt(ty(y))}" r="{_fmt(r_stone * 0.40)}" '
-                f'fill="none" stroke="#00ffc2" stroke-width="2.2" filter="url(#gl)"/>')
+                f'fill="none" stroke="{P["last"]}" stroke-width="2.2" filter="url(#gl)"/>')
     # analysis overlay (KataGo-style): ownership shading on empty points + candidate-move markers
     if analysis is not None:
         own = analysis.get("ownership")
@@ -228,7 +239,7 @@ def interactive_svg(
                 if abs(o) < 0.18:
                     continue
                 x, y = bg.coords[i]
-                col = "#0a0d10" if o > 0 else "#f4f4f2"   # black-leaning dark, white-leaning light
+                col = P["ownb"] if o > 0 else P["ownw"]   # black-leaning / white-leaning
                 sq = r_stone * 1.15
                 out.append(
                     f'<rect x="{_fmt(tx(x) - sq / 2)}" y="{_fmt(ty(y) - sq / 2)}" '

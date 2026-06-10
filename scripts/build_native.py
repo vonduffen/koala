@@ -27,18 +27,35 @@ CKPT = "results/universal/champion.pt"
 KEYS = [k for k, _, _ in server.TILINGS]
 b64 = lambda a, dt: base64.b64encode(np.asarray(a, dtype=dt).tobytes()).decode("ascii")
 
+
+def families_struct():
+    """Family → ordered [[key, size_label], ...] for the grouped picker (catalogue order)."""
+    fams, cur = [], None
+    for key, _, _ in server.TILINGS:
+        fam, size = server._FAMILY_OF[key]
+        if cur is None or cur["family"] != fam:
+            cur = {"family": fam, "items": []}
+            fams.append(cur)
+        cur["items"].append([key, size])
+    return fams
+
+
 BODY = """
 <div class="stage"><div class="glow"></div><div id="boardwrap"><div id="board"></div><div id="scan"></div></div></div>
 <div class="winrail" title="Black win probability"><div class="winrail-fill" id="winfill"></div></div>
 <div class="panel ctrl">
-  <div class="brand"><div class="logo"></div><div><h1>TILING·GO</h1><p>native C++ engine</p></div></div>
-  <label>Substrate</label><select id="tiling"></select>
+  <div class="brand"><div class="logo"></div><div><h1>EUCLIDEAN·GO</h1><p>native C++ engine</p></div></div>
+  <label>Substrate</label>
+  <select id="family"></select>
+  <select id="variant" style="margin-top:6px"></select>
+  <button id="random" style="margin-top:6px">🎲 Random board</button>
   <label>Opponent</label>
   <select id="opponent"><option value="engine">Neural engine (champion)</option><option value="off">Human (hot-seat)</option></select>
   <button id="analyze" class="cta">⌖ Analyze position</button>
   <div class="row"><button id="pass">Pass</button><button id="undo">Undo</button><button id="reset">New game</button></div>
   <label class="chk"><input type="checkbox" id="auto"> Auto-analyze each move</label>
   <label class="chk"><input type="checkbox" id="snd" checked> Stone sound</label>
+  <label class="chk"><input type="checkbox" id="light"> ☀ Light mode</label>
 </div>
 <div class="panel info">
   <div class="turnrow"><span class="dot" id="turndot"></span><span id="turn">—</span><span class="spacer"></span><span class="muted" id="move">move 0</span></div>
@@ -76,9 +93,10 @@ def main() -> int:
     ui = (REPO / "webapp" / "native_ui.js").read_text()
     import json
     html = ("<!doctype html>\n<html lang=\"en\"><head>\n<meta charset=\"utf-8\">"
-            "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Tiling-Go</title>\n"
+            "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Euclidean Go</title>\n"
             "<style>\n" + css + "\n</style></head>\n<body>\n" + BODY +
-            "\n<script>const BOARDSGEOM = " + json.dumps(geom) + ";</script>\n"
+            "\n<script>const BOARDSGEOM = " + json.dumps(geom) + ";\n"
+            "const FAMILIES = " + json.dumps(families_struct()) + ";</script>\n"
             "<script>\n" + ui + "\n</script>\n</body></html>\n")
     (dist / "index.html").write_text(html)
 
@@ -87,11 +105,11 @@ def main() -> int:
     subprocess.run(["clang++", "-O3", "-std=c++17", "-DACCELERATE_NEW_LAPACK", "-framework", "Accelerate",
                     str(REPO / "cpp" / "server.cpp"), "-o", str(dist / "TilingGo")], check=True)
 
-    launcher = dist / "Play TilingGo.command"
+    launcher = dist / "Play Euclidean Go.command"
     launcher.write_text(
         '#!/bin/bash\n'
         'D="$(cd "$(dirname "$0")" && pwd)"\n'
-        'echo "Starting Tiling-Go (native C++ engine)…  close this window to stop."\n'
+        'echo "Starting Euclidean Go (native C++ engine)…  close this window to stop."\n'
         '"$D/TilingGo" "$D" 8799 220 &\n'
         'SRV=$!\n'
         'sleep 1; open "http://127.0.0.1:8799/"\n'

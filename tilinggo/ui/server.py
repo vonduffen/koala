@@ -66,6 +66,18 @@ for _fam_label, _fam_key, _builder, _sizes in _CATALOG:
 _LABELS = {k: lbl for k, lbl, _ in TILINGS}
 
 
+def families_struct():
+    """Family → ordered [[key, size_label], ...] for the grouped substrate picker."""
+    fams, cur = [], None
+    for key, _, _ in TILINGS:
+        fam, size = _FAMILY_OF[key]
+        if cur is None or cur["family"] != fam:
+            cur = {"family": fam, "items": []}
+            fams.append(cur)
+        cur["items"].append([key, size])
+    return fams
+
+
 def _make_board(key: str, komi: float = 5.5) -> Board:
     builder, param = _BUILDERS[key]
     return Board(builder(param), komi=komi)
@@ -103,6 +115,8 @@ class Game:
 
     def __init__(self, key: str = "penrose_medium"):
         self.lock = threading.Lock()
+        self.theme = "dark"          # board is rendered server-side; client sets this via /api/theme
+        self.last_perf = None        # timing of the most recent engine search (for the perf panel)
         self.reset(key)
 
     def reset(self, key: str):
@@ -145,7 +159,13 @@ class Game:
 
         mcts = MCTS(ScoreHeuristicEvaluator(),
                     MCTSConfig(num_simulations=simulations, eval_batch=16))
+        import time
+        t0 = time.perf_counter()
         root = mcts.run(self.state)
+        dt = time.perf_counter() - t0
+        self.last_perf = {"sims": simulations, "ms": round(dt * 1000, 1),
+                          "sps": int(simulations / dt) if dt > 0 else 0,
+                          "n": self.state.board.n, "kind": "heuristic"}
         self.play(mcts.select_move(root, temperature=0.0))
 
     def neural_move(self, simulations: int = 200):
@@ -164,7 +184,12 @@ class Game:
         n = self.state.board.n
         sims = max(40, min(simulations, int(simulations * 81 / max(n, 81))))
         mcts = MCTS(net, MCTSConfig(num_simulations=sims, eval_batch=16))
+        import time
+        t0 = time.perf_counter()
         root = mcts.run(self.state)
+        dt = time.perf_counter() - t0
+        self.last_perf = {"sims": sims, "ms": round(dt * 1000, 1),
+                          "sps": int(sims / dt) if dt > 0 else 0, "n": n, "kind": "neural"}
         self.play(mcts.select_move(root, temperature=0.0))
 
     def analyze(self, simulations: int = 320) -> dict:
@@ -199,7 +224,12 @@ class Game:
         sims = max(64, min(simulations, int(simulations * 81 / max(n, 81))))
         mcts = MCTS(ev, MCTSConfig(num_simulations=sims, eval_batch=16, dirichlet_eps=0.0),
                     rng=np.random.default_rng(0))
+        import time
+        t0 = time.perf_counter()
         root = mcts.run(s)
+        dt = time.perf_counter() - t0
+        self.last_perf = {"sims": sims, "ms": round(dt * 1000, 1),
+                          "sps": int(sims / dt) if dt > 0 else 0, "n": n, "kind": "analyze"}
         total = float(root.N.sum()) or 1.0
         moves = []
         for ai in np.argsort(root.N)[::-1]:
@@ -215,7 +245,7 @@ class Game:
         analysis = {"moves": [m for m in moves[:8] if not m["is_pass"]],
                     "ownership": own_signed.tolist(), "best": best}
         svg = render.interactive_svg(self.board.graph, s.colors, last_move=self.last_move,
-                                     legal=s.legal_moves()[:n], analysis=analysis)
+                                     legal=s.legal_moves()[:n], analysis=analysis, theme=self.theme)
 
         black_wr = (0.5 * (value + 1.0)) if s.to_move == BLACK else (0.5 * (1.0 - value))
         lead = score_est if s.to_move == BLACK else -score_est
@@ -225,9 +255,25 @@ class Game:
             "black_winrate": black_wr,
             "score_lead": round(lead, 1),
             "sims": sims,
+            "perf": self.last_perf,
             "top": [{"node": m["node"], "winrate": m["winrate"], "visits": m["visits"],
                      "is_pass": m["is_pass"]} for m in moves[:6]],
         }
+
+    def _black_winrate(self):
+        """Black's win probability from one cheap net forward — drives the win-rate timeline."""
+        ev = _trained_evaluator()
+        if ev is None:
+            return None
+        s = self.state
+        if s.is_terminal:
+            return 1.0 if s.winner() == BLACK else 0.0
+        import torch
+
+        from ..nn import encoding
+        with torch.no_grad():
+            value = float(ev.net.forward(encoding.encode_states([s]))["value"][0])
+        return (0.5 * (value + 1.0)) if s.to_move == BLACK else (0.5 * (1.0 - value))
 
     def snapshot(self) -> dict:
         s = self.state
@@ -237,7 +283,7 @@ class Game:
             "label": _LABELS[self.key],
             "svg": render.interactive_svg(
                 self.board.graph, s.colors, last_move=self.last_move,
-                legal=s.legal_moves()[: self.board.n]),
+                legal=s.legal_moves()[: self.board.n], theme=self.theme),
             "to_move": "Black" if s.to_move == BLACK else "White",
             "black": black,
             "white": white,
@@ -249,6 +295,7 @@ class Game:
             "winner": ("Black" if s.winner() == BLACK else "White") if s.is_terminal else None,
             "n": self.board.n,
             "can_undo": len(self.history) > 1,
+            "black_winrate": self._black_winrate(),
         }
 
 
@@ -271,13 +318,14 @@ class Handler(BaseHTTPRequestHandler):
         self._send(code, json.dumps(obj))
 
     def do_GET(self):
-        if self.path in ("/", "/index.html"):
+        path = self.path.split("?", 1)[0]          # ignore cache-buster query strings (?v=…)
+        if path in ("/", "/index.html"):
             self._send(200, PAGE, "text/html; charset=utf-8")
-        elif self.path == "/api/state":
+        elif path == "/api/state":
             with GAME.lock:
                 self._json(GAME.snapshot())
-        elif self.path == "/api/tilings":
-            self._json([{"key": k, "label": lbl} for k, lbl, _ in TILINGS])
+        elif path == "/api/tilings":
+            self._json(families_struct())
         else:
             self._send(404, "not found", "text/plain")
 
@@ -298,15 +346,18 @@ class Handler(BaseHTTPRequestHandler):
                 GAME.random_move()
                 self._json(GAME.snapshot())
             elif self.path == "/api/engine":
-                GAME.engine_move()
-                self._json(GAME.snapshot())
+                GAME.engine_move(int(body.get("sims", 120)))
+                self._json({**GAME.snapshot(), "perf": GAME.last_perf})
             elif self.path == "/api/neural":
-                GAME.neural_move()
-                self._json(GAME.snapshot())
+                GAME.neural_move(int(body.get("sims", 200)))
+                self._json({**GAME.snapshot(), "perf": GAME.last_perf})
             elif self.path == "/api/analyze":
-                self._json(GAME.analyze())
+                self._json(GAME.analyze(int(body.get("sims", 320))))
             elif self.path == "/api/reset":
                 GAME.reset(body.get("key", "penrose_medium"))
+                self._json(GAME.snapshot())
+            elif self.path == "/api/theme":
+                GAME.theme = "light" if body.get("theme") == "light" else "dark"
                 self._json(GAME.snapshot())
             else:
                 self._send(404, "not found", "text/plain")
@@ -320,7 +371,7 @@ def serve(host: str = "127.0.0.1", port: int = 8770) -> ThreadingHTTPServer:
 PAGE = """<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tiling-Go — play</title>
+<title>Euclidean Go — play</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
   :root {
@@ -334,6 +385,16 @@ PAGE = """<!doctype html>
     font-family:"Space Grotesk","Inter",-apple-system,system-ui,Segoe UI,Roboto,sans-serif;
     background:radial-gradient(1200px 820px at 50% 42%, #14171f 0%, var(--bg) 62%), var(--bg);
     -webkit-font-smoothing:antialiased; }
+  html[data-theme="light"] {
+    --bg:#e7e1d2; --panel:rgba(255,253,247,0.88); --line:rgba(0,0,0,0.13);
+    --text:#1c2230; --muted:#5f6877; --accent:#0aa97f; --accent-dim:rgba(10,169,127,0.16);
+    color-scheme:light;
+  }
+  html[data-theme="light"] body { background:radial-gradient(1200px 820px at 50% 42%, #f5f1e6 0%, var(--bg) 62%), var(--bg); }
+  html[data-theme="light"] select { background-color:#fbfaf4; }
+  html[data-theme="light"] button { background:#f1ece0; }
+  html[data-theme="light"] button:hover { background:#e9e3d4; border-color:rgba(10,169,127,0.45); }
+  html[data-theme="light"] .chk, html[data-theme="light"] .topmv, html[data-theme="light"] .brand p { color:var(--muted); }
 
   .stage { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; }
   .glow { position:absolute; width:62vh; height:62vh; border-radius:50%; pointer-events:none;
@@ -400,14 +461,12 @@ PAGE = """<!doctype html>
   .topmv .k { color:var(--accent); font-weight:700; }
   .msg { color:#e0796b; font-size:12px; min-height:15px; margin-top:10px; }
   .win { color:var(--accent); font-weight:600; }
-
-  .winrail { position:fixed; left:26px; top:50%; transform:translateY(-50%); z-index:4; width:12px;
-    height:60vh; border-radius:7px; overflow:hidden; border:1px solid var(--line);
-    background:linear-gradient(#d7dbe4,#b3b9c6); box-shadow:inset 0 0 12px rgba(0,0,0,.4); }
-  .winrail-fill { position:absolute; left:0; right:0; bottom:0; height:50%;
-    background:linear-gradient(#222633,#05060a); transition:height .5s cubic-bezier(.2,.7,.2,1); }
-  .winrail-fill::after { content:""; position:absolute; top:-1px; left:0; right:0; height:2px;
-    background:var(--accent); box-shadow:0 0 8px var(--accent); }
+  .perfrow { display:flex; align-items:baseline; gap:6px; }
+  .perfbig { font-size:24px; font-weight:600; color:var(--accent);
+    font-family:"JetBrains Mono",ui-monospace,Menlo,monospace; line-height:1.1; }
+  .perfunit { font-size:11px; color:var(--muted); }
+  .perfsub { font-size:10.5px; color:var(--muted); margin-top:2px;
+    font-family:"JetBrains Mono",ui-monospace,Menlo,monospace; }
 
   #scan { position:absolute; inset:0; border-radius:18px; overflow:hidden; pointer-events:none;
     opacity:0; transition:opacity .2s; }
@@ -422,13 +481,13 @@ PAGE = """<!doctype html>
   <div id="boardwrap"><div id="board"></div><div id="scan"></div></div>
 </div>
 
-<div class="winrail" title="Black win probability"><div class="winrail-fill" id="winfill"></div></div>
-
 <div class="panel ctrl">
   <div class="brand"><div class="logo"></div>
-    <div><h1>TILING·GO</h1><p>geometry-blind engine</p></div></div>
+    <div><h1>EUCLIDEAN·GO</h1><p>geometry-blind engine</p></div></div>
   <label>Substrate</label>
-  <select id="tiling"></select>
+  <select id="family"></select>
+  <select id="variant" style="margin-top:6px"></select>
+  <button id="rand" style="margin-top:6px">🎲 Random board</button>
   <label>Opponent</label>
   <select id="opponent">
     <option value="neural">Neural engine (champion)</option>
@@ -436,11 +495,13 @@ PAGE = """<!doctype html>
     <option value="engine">Heuristic engine</option>
     <option value="random">Random moves</option>
   </select>
+  <label>Engine strength</label>
+  <select id="strength"><option value="120">Fast</option><option value="320" selected>Normal</option><option value="800">Strong</option></select>
   <button id="analyze" class="cta">⌖ Analyze position</button>
-  <div class="row"><button id="pass">Pass</button><button id="undo">Undo</button></div>
-  <div class="row"><button id="rand">Random</button><button id="reset">New game</button></div>
+  <div class="row"><button id="pass">Pass</button><button id="undo">Undo</button><button id="reset">New game</button></div>
   <label class="chk"><input type="checkbox" id="auto"> Auto-analyze each move</label>
   <label class="chk"><input type="checkbox" id="snd" checked> Stone sound</label>
+  <label class="chk"><input type="checkbox" id="light"> ☀ Light mode</label>
 </div>
 
 <div class="panel info">
@@ -452,11 +513,47 @@ PAGE = """<!doctype html>
   </div>
   <div class="topmv" id="topmv"></div>
   <div class="msg" id="msg"></div>
+  <div class="lbl" style="margin-top:14px">Win-rate · Black</div>
+  <div id="wrgraph"></div>
+  <div class="lbl" style="margin-top:14px">Engine performance</div>
+  <div id="perf"></div>
 </div>
 
 <script>
 const $ = s => document.querySelector(s);
-let busy = false, prevMove = -1, actx;
+let busy = false, prevMove = -1, actx, wrHist = [], perfHist = [], lastPerf = null;
+
+// graph colours follow the theme
+const gcol = () => document.documentElement.getAttribute("data-theme") === "light"
+  ? {bg:"#f4efe3", line:"#cbc3b0", path:"#0a9c79"} : {bg:"#0b0d13", line:"#2a313c", path:"#00ffc2"};
+
+// win-rate timeline: black win prob per move; red dot where the mover dropped ≥12% (a blunder)
+function drawWRGraph(cur) {
+  const el = $("#wrgraph"); if (!el) return;
+  const W = 256, H = 74, pad = 6, m = Math.max(cur, 1), T = gcol();
+  const xs = i => pad + (i / m) * (W - 2 * pad), ys = w => pad + (1 - w) * (H - 2 * pad);
+  let path = "", dots = "";
+  for (let i = 0; i <= cur; i++) { const w = wrHist[i]; if (w == null) continue; path += (path ? "L" : "M") + xs(i).toFixed(1) + " " + ys(w).toFixed(1) + " "; }
+  for (let i = 1; i <= cur; i++) { const w = wrHist[i], p = wrHist[i - 1]; if (w == null || p == null) continue;
+    const d = (i % 2 === 1) ? (w - p) : (p - w); if (d < -0.12) dots += `<circle cx="${xs(i).toFixed(1)}" cy="${ys(w).toFixed(1)}" r="3.4" fill="#e0796b" stroke="#1a0e0c" stroke-width="0.8"/>`; }
+  const mid = ys(0.5).toFixed(1), cx = xs(cur).toFixed(1);
+  el.innerHTML = `<svg width="100%" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="border-radius:8px;background:${T.bg};border:1px solid ${T.line}">
+    <line x1="${pad}" y1="${mid}" x2="${W - pad}" y2="${mid}" stroke="${T.line}" stroke-dasharray="3 3"/>
+    <path d="${path}" fill="none" stroke="${T.path}" stroke-width="2" vector-effect="non-scaling-stroke"/>
+    <line x1="${cx}" y1="${pad}" x2="${cx}" y2="${H - pad}" stroke="${T.line}" opacity="0.6"/>${dots}</svg>`;
+}
+// real-time engine performance: sims/sec headline + a sparkline of recent moves
+function updatePerf(p, push) {
+  if (!p) return;
+  if (push) { perfHist.push(p.sps); if (perfHist.length > 40) perfHist.shift(); }
+  const T = gcol(), W = 256, H = 36, pad = 4, n = perfHist.length, mx = Math.max(...perfHist, 1);
+  const xs = i => pad + (n < 2 ? 0 : (i / (n - 1)) * (W - 2 * pad)), ys = v => pad + (1 - v / mx) * (H - 2 * pad);
+  let path = ""; perfHist.forEach((v, i) => { path += (path ? "L" : "M") + xs(i).toFixed(1) + " " + ys(v).toFixed(1) + " "; });
+  $("#perf").innerHTML = `<div class="perfrow"><span class="perfbig">${p.sps.toLocaleString()}</span><span class="perfunit">sims/s</span></div>
+    <div class="perfsub">${p.sims} sims · ${p.ms} ms/move · ${p.n} nodes</div>
+    <svg width="100%" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="border-radius:8px;background:${T.bg};border:1px solid ${T.line};margin-top:6px">
+      <path d="${path}" fill="none" stroke="${T.path}" stroke-width="1.6" vector-effect="non-scaling-stroke"/></svg>`;
+}
 
 function clack() {                         // synthesized stone "clack" — no audio assets needed
   if (!$("#snd").checked) return;
@@ -469,7 +566,6 @@ function clack() {                         // synthesized stone "clack" — no a
     o.connect(g).connect(actx.destination); o.start(t); o.stop(t + 0.14);
   } catch (e) {}
 }
-const setWin = bw => { $("#winfill").style.height = Math.round(bw * 100) + "%"; };
 const thinking = on => $("#scan").classList.toggle("on", on);
 
 function render(st) {
@@ -486,26 +582,34 @@ function render(st) {
   if (st.move_num > prevMove && !st.error) clack();
   prevMove = st.move_num;
   $("#winpct").textContent = "—"; $("#topmv").innerHTML = "";
+  // win-rate timeline
+  if (st.move_num === 0) { wrHist = []; perfHist = []; lastPerf = null; }
+  else if (wrHist.length > st.move_num + 1) wrHist.length = st.move_num + 1;   // trim on undo
+  if (typeof st.black_winrate === "number") wrHist[st.move_num] = st.black_winrate;
+  drawWRGraph(st.move_num);
+  if (st.perf) { lastPerf = st.perf; updatePerf(st.perf, true); }
+  else if (lastPerf) updatePerf(lastPerf, false);     // redraw (e.g. theme change) without pushing
   bind();
 }
 function showAnalysis(a) {
   if (a.error) { $("#msg").textContent = a.error; return; }
   $("#board").innerHTML = a.svg; bind();
-  setWin(a.black_winrate);
   $("#winpct").textContent = Math.round(a.black_winrate * 100) + "%";
   $("#score").textContent = (a.score_lead >= 0 ? "B+" : "W+") + Math.abs(a.score_lead).toFixed(1);
   $("#topmv").innerHTML = a.top.filter(m => !m.is_pass).slice(0, 5).map((m, i) =>
     `<span class="k">${i + 1}</span> ${Math.round(m.winrate * 100)}% &middot; ${m.visits}v`).join("<br>");
   $("#msg").textContent = "";
+  if (a.perf) { lastPerf = a.perf; updatePerf(a.perf, true); }
 }
 async function api(path, body) {
   const r = await fetch(path, {method: body ? "POST" : "GET",
     headers: {"Content-Type": "application/json"}, body: body ? JSON.stringify(body) : undefined});
   return r.json();
 }
+const $sims = () => +$("#strength").value;        // engine strength → MCTS simulations
 async function doAnalyze() {
   thinking(true);
-  try { showAnalysis(await api("/api/analyze", {})); } finally { thinking(false); }
+  try { showAnalysis(await api("/api/analyze", {sims: $sims()})); } finally { thinking(false); }
 }
 const OPP_ENDPOINT = {neural: "/api/neural", engine: "/api/engine", random: "/api/random"};
 async function afterHuman(st) {
@@ -514,7 +618,7 @@ async function afterHuman(st) {
   if (!st.error && !st.terminal && OPP_ENDPOINT[opp]) {
     if (opp !== "random") thinking(true);
     await new Promise(r => setTimeout(r, 50));
-    render(await api(OPP_ENDPOINT[opp], {}));
+    render(await api(OPP_ENDPOINT[opp], {sims: $sims()}));
     thinking(false);
   }
   if (!st.error && $("#auto").checked) await doAnalyze();
@@ -530,15 +634,41 @@ function bind() {
 $("#analyze").onclick = async () => { if (busy) return; busy = true; try { await doAnalyze(); } finally { busy = false; } };
 $("#pass").onclick = () => human("/api/pass", {});
 $("#undo").onclick = async () => { render(await api("/api/undo", {})); };
-$("#rand").onclick = () => human("/api/random", {});
-$("#reset").onclick = async () => { setWin(0.5); render(await api("/api/reset", {key: $("#tiling").value})); };
-$("#tiling").onchange = async () => { setWin(0.5); render(await api("/api/reset", {key: $("#tiling").value})); };
+
+// substrate: family + size, built from the grouped catalogue (/api/tilings returns families)
+let FAMS = [];
+const famSel = $("#family"), varSel = $("#variant");
+const fillVariants = fi => { varSel.innerHTML = FAMS[fi].items.map(([k, sub]) => `<option value="${k}">${sub}</option>`).join(""); };
+const currentKey = () => varSel.value;
+const selectKey = key => { for (let i = 0; i < FAMS.length; i++) if (FAMS[i].items.some(([k]) => k === key)) { famSel.value = i; fillVariants(i); varSel.value = key; return; } };
+const newBoard = async () => { render(await api("/api/reset", {key: currentKey()})); };
+$("#reset").onclick = newBoard;
+famSel.onchange = () => { fillVariants(+famSel.value); newBoard(); };
+varSel.onchange = newBoard;
+$("#rand").onclick = () => {
+  const all = FAMS.reduce((a, f) => a.concat(f.items.map(it => it[0])), []), cur = currentKey();
+  let k = cur; for (let t = 0; t < 25 && k === cur; t++) k = all[(Math.random() * all.length) | 0];
+  selectKey(k); newBoard();
+};
+
+// theme (light/dark): manual choice persists, else follow the device; board re-renders server-side
+const applyTheme = t => document.documentElement.setAttribute("data-theme", t);
+$("#light").onchange = async () => {
+  const t = $("#light").checked ? "light" : "dark"; applyTheme(t);
+  try { localStorage.setItem("eg-theme", t); } catch (e) {}
+  render(await api("/api/theme", {theme: t}));
+};
 
 (async () => {
-  const tilings = await api("/api/tilings");
-  $("#tiling").innerHTML = tilings.map(t => `<option value="${t.key}">${t.label}</option>`).join("");
+  FAMS = await api("/api/tilings");
+  famSel.innerHTML = FAMS.map((g, i) => `<option value="${i}">${g.family}</option>`).join("");
+  let saved = null; try { saved = localStorage.getItem("eg-theme"); } catch (e) {}
+  const sysLight = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
+  const startTheme = saved || (sysLight ? "light" : "dark");
+  applyTheme(startTheme); $("#light").checked = startTheme === "light";
+  await api("/api/theme", {theme: startTheme});      // sync server so the board renders themed
   const st = await api("/api/state");
-  $("#tiling").value = st.key; setWin(0.5); render(st);
+  selectKey(st.key); render(st);
 })();
 </script>
 </body></html>

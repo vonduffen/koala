@@ -33,11 +33,11 @@
       const moverDelta = (i % 2 === 1) ? (w - p) : (p - w);   // mover's own win-rate change
       if (moverDelta < -0.12) dots += `<circle cx="${xs(i).toFixed(1)}" cy="${ys(w).toFixed(1)}" r="3.4" fill="#e0796b" stroke="#1a0e0c" stroke-width="0.8"/>`;
     }
-    const mid = ys(0.5).toFixed(1), cx = xs(cur).toFixed(1);
-    el.innerHTML = `<svg width="100%" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="border-radius:8px;background:#0b0d13;border:1px solid var(--line)">
-      <line x1="${pad}" y1="${mid}" x2="${W - pad}" y2="${mid}" stroke="#2a313c" stroke-dasharray="3 3"/>
-      <path d="${path}" fill="none" stroke="#00ffc2" stroke-width="2" vector-effect="non-scaling-stroke"/>
-      <line x1="${cx}" y1="${pad}" x2="${cx}" y2="${H - pad}" stroke="#ffffff22"/>${dots}</svg>`;
+    const mid = ys(0.5).toFixed(1), cx = xs(cur).toFixed(1), T = theme();
+    el.innerHTML = `<svg width="100%" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="border-radius:8px;background:${T.gBg};border:1px solid ${T.gLine}">
+      <line x1="${pad}" y1="${mid}" x2="${W - pad}" y2="${mid}" stroke="${T.gLine}" stroke-dasharray="3 3"/>
+      <path d="${path}" fill="none" stroke="${T.gPath}" stroke-width="2" vector-effect="non-scaling-stroke"/>
+      <line x1="${cx}" y1="${pad}" x2="${cx}" y2="${H - pad}" stroke="${T.line}" opacity="0.25"/>${dots}</svg>`;
   }
 
   function minSpacing(coords) {
@@ -54,7 +54,16 @@
     '<filter id="gl" x="-90%" y="-90%" width="280%" height="280%"><feDropShadow dx="0" dy="0" stdDeviation="3.2" flood-color="#00ffc2" flood-opacity="0.95"/></filter>' +
     '<filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter></defs>';
 
+  const THEMES = {
+    dark:  { boardBg: "url(#bgs)", line: "#454c5e", lineOp: 0.85, legal: "#5a6478", last: "#00ffc2",
+             bStroke: "#000000", wStroke: "#aab0c0", gBg: "#0b0d13", gLine: "#2a313c", gPath: "#00ffc2" },
+    light: { boardBg: "#efe8d6", line: "#3d4350", lineOp: 0.92, legal: "#7a8290", last: "#0a9c79",
+             bStroke: "#14171d", wStroke: "#586071", gBg: "#f4efe3", gLine: "#cbc3b0", gPath: "#0a9c79" },
+  };
+  const theme = () => THEMES[document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark"];
+
   function renderSVG(g, colors, last, legal, analysis) {
+    const T = theme();
     const W = 760, margin = 26, coords = g.coords, n = g.n;
     const spc = minSpacing(coords), pad = 0.55 * spc;
     let mnx = Infinity, mny = Infinity, mxx = -Infinity, mxy = -Infinity;
@@ -65,13 +74,13 @@
     const tx = x => margin + (x - mnx) * scale, ty = y => margin + (mxy - y) * scale;
     const rS = 0.46 * spc * scale, rH = 0.5 * spc * scale;
     const o = [`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`, DEFS,
-      `<rect width="${W}" height="${H}" rx="18" fill="url(#bgs)"/>`, `<rect width="${W}" height="${H}" rx="18" filter="url(#grain)" opacity="0.045"/>`];
+      `<rect width="${W}" height="${H}" rx="18" fill="${T.boardBg}"/>`, `<rect width="${W}" height="${H}" rx="18" filter="url(#grain)" opacity="0.045"/>`];
     for (let e = 0; e < g.edges.length; e += 2) { const a = g.edges[e], b = g.edges[e + 1];
-      o.push(`<line x1="${fmt(tx(coords[a][0]))}" y1="${fmt(ty(coords[a][1]))}" x2="${fmt(tx(coords[b][0]))}" y2="${fmt(ty(coords[b][1]))}" stroke="#454c5e" stroke-width="1.1" stroke-linecap="round" opacity="0.85"/>`); }
-    if (legal) for (let i = 0; i < n; i++) if (colors[i] === 0 && legal[i]) o.push(`<circle cx="${fmt(tx(coords[i][0]))}" cy="${fmt(ty(coords[i][1]))}" r="${fmt(rS * 0.2)}" fill="#5a6478" opacity="0.16"/>`);
+      o.push(`<line x1="${fmt(tx(coords[a][0]))}" y1="${fmt(ty(coords[a][1]))}" x2="${fmt(tx(coords[b][0]))}" y2="${fmt(ty(coords[b][1]))}" stroke="${T.line}" stroke-width="1.1" stroke-linecap="round" opacity="${T.lineOp}"/>`); }
+    if (legal) for (let i = 0; i < n; i++) if (colors[i] === 0 && legal[i]) o.push(`<circle cx="${fmt(tx(coords[i][0]))}" cy="${fmt(ty(coords[i][1]))}" r="${fmt(rS * 0.2)}" fill="${T.legal}" opacity="0.16"/>`);
     for (let i = 0; i < n; i++) { const c = colors[i]; if (!c) continue; const x = tx(coords[i][0]), y = ty(coords[i][1]);
-      o.push(`<circle cx="${fmt(x)}" cy="${fmt(y)}" r="${fmt(rS)}" fill="${c === 1 ? "url(#bz)" : "url(#wz)"}" stroke="${c === 1 ? "#000" : "#aab0c0"}" stroke-width="0.7" filter="url(#sh)"/>`);
-      if (last === i) o.push(`<circle cx="${fmt(x)}" cy="${fmt(y)}" r="${fmt(rS * 0.4)}" fill="none" stroke="#00ffc2" stroke-width="2.2" filter="url(#gl)"/>`); }
+      o.push(`<circle cx="${fmt(x)}" cy="${fmt(y)}" r="${fmt(rS)}" fill="${c === 1 ? "url(#bz)" : "url(#wz)"}" stroke="${c === 1 ? T.bStroke : T.wStroke}" stroke-width="0.7" filter="url(#sh)"/>`);
+      if (last === i) o.push(`<circle cx="${fmt(x)}" cy="${fmt(y)}" r="${fmt(rS * 0.4)}" fill="none" stroke="${T.last}" stroke-width="2.2" filter="url(#gl)"/>`); }
     if (analysis) for (const m of analysis.top) {
       const x = tx(coords[m.node][0]), y = ty(coords[m.node][1]), q = Math.max(0, Math.min(1, m.q));
       const best = analysis.best === m.node;
@@ -127,8 +136,24 @@
   }
 
   async function init() {
-    const tilings = await api("/api/tilings");
-    $("#tiling").innerHTML = tilings.map(t => `<option value="${t.key}">${t.label}</option>`).join("");
+    // FAMILIES (baked into the bundle) = [{family, items:[[key, size], ...]}, ...]
+    const FAMS = (typeof FAMILIES !== "undefined" && FAMILIES.length)
+      ? FAMILIES : (await api("/api/tilings")).map(t => ({ family: t.label, items: [[t.key, t.label]] }));
+    const famSel = $("#family"), varSel = $("#variant");
+    famSel.innerHTML = FAMS.map((g, i) => `<option value="${i}">${g.family}</option>`).join("");
+    const fillVariants = fi => { varSel.innerHTML = FAMS[fi].items.map(([k, sub]) => `<option value="${k}">${sub}</option>`).join(""); };
+    const currentKey = () => varSel.value;
+    const selectKey = key => { for (let i = 0; i < FAMS.length; i++) if (FAMS[i].items.some(([k]) => k === key)) { famSel.value = i; fillVariants(i); varSel.value = key; return; } };
+    const newBoard = async () => { if (busy) return; busy = true; try { setWin(0.5); render(await api("/api/reset", { key: currentKey() })); } finally { busy = false; } };
+
+    // theme (light/dark): a manual choice persists; otherwise follow the device's setting
+    const applyTheme = t => document.documentElement.setAttribute("data-theme", t);
+    let savedTheme = null; try { savedTheme = localStorage.getItem("eg-theme"); } catch (e) {}
+    const sysLight = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
+    const startTheme = savedTheme || (sysLight ? "light" : "dark");
+    applyTheme(startTheme); $("#light").checked = startTheme === "light";
+    $("#light").onchange = () => { const t = $("#light").checked ? "light" : "dark"; applyTheme(t); try { localStorage.setItem("eg-theme", t); } catch (e) {} if (ST) render(ST); };
+
     $("#analyze").onclick = async () => { if (busy) return; busy = true; try { await analyze(); } finally { busy = false; } };
     $("#pass").onclick = async () => { if (busy) return; busy = true; try { render(await api("/api/pass", {})); if ($("#opponent").value === "engine" && !ST.terminal) { thinking(true); render(await api("/api/engine", {})); thinking(false); } } finally { busy = false; } };
     $("#undo").onclick = async () => {
@@ -142,9 +167,17 @@
         render(st);
       } finally { busy = false; }
     };
-    $("#reset").onclick = async () => { if (busy) return; setWin(0.5); render(await api("/api/reset", { key: $("#tiling").value })); };
-    $("#tiling").onchange = $("#reset").onclick;
-    const st = await api("/api/state"); $("#tiling").value = st.key; setWin(0.5); render(st);
+    $("#reset").onclick = newBoard;
+    famSel.onchange = () => { fillVariants(+famSel.value); newBoard(); };
+    varSel.onchange = newBoard;
+    $("#random").onclick = () => {
+      if (busy) return;
+      const all = FAMS.reduce((a, f) => a.concat(f.items.map(it => it[0])), []), cur = currentKey();
+      let k = cur; for (let t = 0; t < 25 && k === cur; t++) k = all[(Math.random() * all.length) | 0];
+      selectKey(k); newBoard();
+    };
+
+    const st = await api("/api/state"); selectKey(st.key); setWin(0.5); render(st);
   }
   if (document.readyState !== "loading") init(); else document.addEventListener("DOMContentLoaded", init);
 })();
