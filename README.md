@@ -13,7 +13,7 @@ No install, no sign-up. Works on desktop and mobile, runs entirely client-side (
 the first load), with the trained neural engine as your opponent on every tiling. *(It's a
 ~4.5 MB page, so give it a moment on the first load.)*
 
-[![Euclidean Go — a live champion self-play game on a Penrose (aperiodic, 5-fold) tiling, with the real-time win-rate graph and engine-performance analyzer](docs/demo.gif)](https://vonduffen.github.io/euclidean-go/)
+[![Euclidean Go — a live champion self-play game on a Penrose (aperiodic, 5-fold) tiling, with the real-time win-rate graph and engine-performance analyzer](docs/demo-v2.gif)](https://vonduffen.github.io/euclidean-go/)
 
 Go is really a *graph game*: stones live on the intersections of a board, connect along lines,
 and are captured when a group runs out of liberties. Nothing in the rules cares whether those

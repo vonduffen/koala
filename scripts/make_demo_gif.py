@@ -149,7 +149,7 @@ def main() -> int:
     ap.add_argument("--key", default="penrose_medium")
     ap.add_argument("--plies", type=int, default=30)
     ap.add_argument("--sims", type=int, default=160)
-    ap.add_argument("--out", default="docs/demo.gif")
+    ap.add_argument("--out", default="docs/demo-v2.gif")
     a = ap.parse_args()
 
     label_map = {"penrose": "Penrose · 5-fold aperiodic", "square": "Square lattice",
