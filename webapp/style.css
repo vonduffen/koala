@@ -60,6 +60,13 @@ button:active { transform:translateY(1px); }
 .num.acc { color:var(--accent); }
 .topmv { font-size:12px; color:#9aa3ad; margin-top:15px; line-height:1.7; min-height:16px; font-family:"JetBrains Mono",ui-monospace,Menlo,monospace; }
 .topmv .k { color:var(--accent); font-weight:700; }
+#perf { margin-top:3px; }
+.perfrow { display:flex; align-items:baseline; gap:6px; }
+.perfbig { font-size:30px; font-weight:600; line-height:1.05; font-family:"JetBrains Mono",ui-monospace,Menlo,monospace; color:var(--text); }
+.perfunit { font-size:13px; color:var(--accent); font-weight:600; }
+.perfsub { font-size:11px; color:var(--muted); margin-top:2px; font-family:"JetBrains Mono",ui-monospace,Menlo,monospace; }
+.perfnote { font-size:11px; color:var(--muted); margin-top:10px; line-height:1.5; }
+.perfnote b { color:var(--accent); font-weight:600; }
 .msg { color:#e0796b; font-size:12px; min-height:15px; margin-top:10px; }
 .win { color:var(--accent); font-weight:600; }
 .winrail { position:fixed; left:26px; top:50%; transform:translateY(-50%); z-index:4; width:12px; height:60vh;

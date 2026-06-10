@@ -54,6 +54,9 @@ BODY = """
   <div class="msg" id="msg"></div>
   <div class="lbl" style="margin-top:14px">Win-rate · Black</div>
   <div id="wrgraph"></div>
+  <div class="lbl" style="margin-top:14px">Engine performance</div>
+  <div id="perf"></div>
+  <div class="perfnote" title="Measured on a 9×9 board at equal MCTS: ≈870 sims/s native vs ≈19 sims/s in-browser. The web engine is pure JavaScript; the native one is C++/Accelerate.">⚡ This runs in pure JavaScript — the <b>native macOS build</b> plays the same engine <b>40× faster</b>.</div>
 </div>
 """
 

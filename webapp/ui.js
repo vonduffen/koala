@@ -8,6 +8,7 @@
   let net = null, B = null, S = null, lastMove = null, prevMove = -1, busy = false, actx = null;
   let hist = [];   // undo stack: snapshots taken before each human turn / pass (state is immutable)
   let wrHist = []; // black win-rate per move index (drives the win-rate graph)
+  let perfHist = [], lastPerf = null; // engine sims/sec history (drives the performance analyzer)
   let humanColor = TG.BLACK;  // which colour the human plays vs the engine (Black moves first)
   let countedStart = false;   // fire one analytics "game started" event per game (hosted site only)
 
@@ -140,6 +141,22 @@
     drawWRGraph(S.moveNum);
   }
 
+  // ---------- live engine-performance analyzer ----------
+  // big sims/sec readout + sims/ms/nodes subline + a sparkline of the last ~40 engine searches.
+  function updatePerf(p, push) {
+    const el = $("#perf"); if (!el || !p) return;
+    if (push) { perfHist.push(p.sps); if (perfHist.length > 40) perfHist.shift(); lastPerf = p; }
+    const T = theme(), W = 256, H = 36, pad = 4, n = perfHist.length, mx = Math.max.apply(null, perfHist.concat(1));
+    const xs = i => pad + (n < 2 ? 0 : (i / (n - 1)) * (W - 2 * pad)), ys = v => pad + (1 - v / mx) * (H - 2 * pad);
+    let path = ""; perfHist.forEach((v, i) => { path += (path ? "L" : "M") + xs(i).toFixed(1) + " " + ys(v).toFixed(1) + " "; });
+    el.innerHTML = `<div class="perfrow"><span class="perfbig">${p.sps.toLocaleString()}</span><span class="perfunit">sims/s</span></div>
+      <div class="perfsub">${p.sims.toLocaleString()} sims &middot; ${p.ms} ms/move &middot; ${p.n} nodes</div>
+      <svg width="100%" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="border-radius:8px;background:${T.gBg};border:1px solid ${T.gLine};margin-top:6px">
+        <path d="${path}" fill="none" stroke="${T.gPath}" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`;
+  }
+  // build a perf record from a finished search (sims + elapsed ms) and push it to the analyzer
+  const pushPerf = r => { if (r && r.sims) updatePerf({ sps: Math.round(r.sims / Math.max(r.ms, 1) * 1000), sims: r.sims, ms: Math.round(r.ms * 10) / 10, n: B.n }, true); };
+
   // ---------- render state ----------
   function draw() {
     const legal = TG.legalMoves(S, B);
@@ -170,7 +187,7 @@
       do { s.sim(); i++; } while (i < cap && performance.now() - cs < 45 && performance.now() - t0 < budgetMs);
       await sleep();
     }
-    return { move: s.best(), root: s.root, sims: i };
+    return { move: s.best(), root: s.root, sims: i, ms: performance.now() - t0 };
   }
 
   async function engineReply() {                    // engine plays the side to move (one move)
@@ -178,7 +195,7 @@
     thinking(true); await sleep();
     const r = await searchMove(STRENGTH[$("#strength").value], 600);
     S = TG.play(S, r.move, B); lastMove = (r.move === B.pass ? null : r.move);
-    thinking(false); draw(); recordWR();
+    thinking(false); draw(); recordWR(); pushPerf(r);
   }
 
   async function onHuman(node) {
@@ -205,7 +222,7 @@
     thinking(true); await sleep();
     const enc = TG.encode(S, B), out = TG.forward(net, enc.x, B.n, B.adj);   // value/own/score
     const r = await searchMove(STRENGTH[$("#strength").value], 800);          // visits
-    thinking(false);
+    thinking(false); pushPerf(r);
     const root = r.root, total = root.N.reduce((a, b) => a + b, 0) || 1;
     const order = Array.from(root.N.keys()).sort((a, b) => root.N[b] - root.N[a]);
     const moves = [], top = [];
@@ -226,7 +243,8 @@
 
   function newGame(key) {
     B = TG.makeBoard(BOARDS[key]); S = TG.newGame(B);
-    lastMove = null; prevMove = 0; hist = []; wrHist = []; countedStart = false; setWin(0.5); draw(); recordWR();
+    lastMove = null; prevMove = 0; hist = []; wrHist = []; perfHist = []; lastPerf = null; countedStart = false;
+    setWin(0.5); $("#perf").innerHTML = ""; draw(); recordWR();
     // if the human chose White, the engine (Black) opens the game
     if ($("#opponent").value === "engine" && humanColor === TG.WHITE) {
       busy = true;
@@ -278,7 +296,7 @@
     $("#light").onchange = () => {
       const t = $("#light").checked ? "light" : "dark";
       applyTheme(t); try { localStorage.setItem("eg-theme", t); } catch (e) {}
-      draw(); if (S) drawWRGraph(S.moveNum);
+      draw(); if (S) drawWRGraph(S.moveNum); if (lastPerf) updatePerf(lastPerf, false);
     };
     selectKey(BOARDS["penrose_medium"] ? "penrose_medium" : Object.keys(BOARDS)[0]);
     newGame(currentKey());
