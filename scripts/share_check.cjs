@@ -1,0 +1,108 @@
+/* share_check.cjs — verifies the shareable-link serialization (webapp/share.js).
+
+   1. Round-trip property test: ≥200 random legal games across 5 substrate families
+      (square, hexagonal, triangular, one Archimedean, Penrose); serialize → parse →
+      replay must reproduce the exact final position: colors, side to move, move count,
+      pass count, and the engine's superko history (the position-key set that IS its
+      Zobrist-equivalent hash).
+   2. Malformed-fragment tests: every failure class must raise a typed ShareError.
+
+   Run: node scripts/share_check.cjs            (exit 0 = pass)                       */
+"use strict";
+const path = require("path");
+const { BOARDS } = require(path.join(__dirname, "..", "webapp", "data.js"));
+const TG = require(path.join(__dirname, "..", "webapp", "engine.js"));
+const SHARE = require(path.join(__dirname, "..", "webapp", "share.js"));
+
+// deterministic RNG so failures reproduce
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function pickKey(prefix) {
+  const k = Object.keys(BOARDS).find(k => k.startsWith(prefix));
+  if (!k) throw new Error(`no board with prefix "${prefix}" in BOARDS`);
+  return k;
+}
+const SUBSTRATES = ["square", "hex_", "tri_", "trihex", "penrose"].map(pickKey);
+
+function randomGame(board, rng, maxLen) {
+  let s = TG.newGame(board);
+  const moves = [];
+  while (moves.length < maxLen && !TG.isTerminal(s, board)) {
+    const legal = TG.legalMoves(s, board);
+    const nodes = [];
+    for (let i = 0; i < board.n; i++) if (legal[i]) nodes.push(i);
+    let mv;
+    if (!nodes.length || rng() < 0.02) mv = board.pass;       // occasional / forced pass
+    else mv = nodes[(rng() * nodes.length) | 0];
+    s = TG.play(s, mv, board);
+    moves.push(mv);
+  }
+  return { state: s, moves };
+}
+
+const sig = (s) => JSON.stringify({
+  colors: Array.from(s.colors), toMove: s.toMove, moveNum: s.moveNum,
+  passCount: s.passCount, history: Array.from(s.history).sort(),
+});
+
+let fails = 0;
+const fail = (msg) => { fails++; console.error("FAIL: " + msg); };
+
+// ---- 1. round-trip property test --------------------------------------------------------
+const GAMES_PER = 40;                                          // 5 × 40 = 200 games
+let total = 0, maxFragLen = 0, frag100 = null;
+for (const key of SUBSTRATES) {
+  const board = TG.makeBoard(BOARDS[key]);
+  const rng = mulberry32(0xE0 + key.length);
+  for (let g = 0; g < GAMES_PER; g++) {
+    const len = 5 + ((rng() * 115) | 0);                       // 5..119 plies
+    const { state, moves } = randomGame(board, rng, len);
+    const frag = SHARE.serialize(key, board, moves);
+    maxFragLen = Math.max(maxFragLen, frag.length);
+    if (moves.length >= 100 && !frag100) frag100 = frag;
+    const parsed = SHARE.parse("#" + frag);
+    const r = SHARE.replay(TG, TG.makeBoard(BOARDS[parsed.key]), parsed);
+    if (sig(r.state) !== sig(state))
+      fail(`round-trip mismatch on ${key} game ${g} (${moves.length} plies)`);
+    total++;
+  }
+}
+console.log(`round-trip: ${total} games across ${SUBSTRATES.length} substrates — ` +
+            `${fails ? fails + " failures" : "all identical (colors+toMove+superko history)"}`);
+console.log(`longest fragment: ${maxFragLen} chars` +
+            (frag100 ? `; a ${frag100.split(".").length - 3}-move game = ${frag100.length} chars (target <1500)` : ""));
+if (maxFragLen > 1500) fail("fragment exceeds 1500-char URL budget");
+
+// ---- 2. malformed fragments --------------------------------------------------------------
+const sq = pickKey("square");
+const sqBoard = TG.makeBoard(BOARDS[sq]);
+const fp = SHARE.fingerprint(sqBoard);
+const expectError = (label, code, fn) => {
+  try { fn(); fail(`${label}: no error raised`); }
+  catch (e) {
+    if (!(e instanceof SHARE.ShareError)) fail(`${label}: wrong error type (${e})`);
+    else if (e.code !== code) fail(`${label}: expected ${code}, got ${e.code}`);
+    else console.log(`malformed ok: ${label} → ${e.code} ("${e.message}")`);
+  }
+};
+expectError("truncated", "BAD_FORMAT", () => SHARE.parse(`#g=1.${sq}`));
+expectError("wrong version", "BAD_VERSION", () => SHARE.parse(`#g=9.${sq}.${fp}.5`));
+expectError("garbage move token", "BAD_FORMAT", () => SHARE.parse(`#g=1.${sq}.${fp}.5.@@`));
+expectError("bad fingerprint", "BAD_BOARD",
+  () => SHARE.replay(TG, sqBoard, SHARE.parse(`#g=1.${sq}.zzzzzz.5`)));
+expectError("node out of range", "BAD_MOVE",
+  () => SHARE.replay(TG, sqBoard, SHARE.parse(`#g=1.${sq}.${fp}.${(sqBoard.n + 5).toString(36)}`)));
+expectError("illegal move (occupied)", "ILLEGAL_MOVE",
+  () => SHARE.replay(TG, sqBoard, SHARE.parse(`#g=1.${sq}.${fp}.5.7.5`)));
+if (SHARE.parse("#foo=bar") !== null) fail("non-game fragment should parse to null");
+else console.log("malformed ok: non-game fragment → ignored (null)");
+
+console.log(fails ? `\nFAIL — ${fails} problem(s)` : "\nPASS — share serialization verified");
+process.exit(fails ? 1 : 0);

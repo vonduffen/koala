@@ -41,6 +41,7 @@ BODY = """
   <select id="strength"><option selected>Fast</option><option>Normal</option><option>Strong</option></select>
   <button id="analyze" class="cta">⌖ Analyze position</button>
   <div class="row"><button id="pass">Pass</button><button id="undo">Undo</button><button id="reset">New game</button></div>
+  <button id="share" style="margin-top:8px">🔗 Copy game link</button>
   <label class="chk"><input type="checkbox" id="auto"> Auto-analyze each move</label>
   <label class="chk"><input type="checkbox" id="snd" checked> Stone sound</label>
   <label class="chk"><input type="checkbox" id="light"> ☀ Light mode</label>
@@ -67,12 +68,13 @@ BODY = """
 
 
 def main() -> int:
-    for f in ("style.css", "data.js", "engine.js", "ui.js"):
+    for f in ("style.css", "data.js", "engine.js", "share.js", "ui.js"):
         if not (WEB / f).exists():
             print(f"missing {WEB/f} — run scripts/export_webapp.py first", file=sys.stderr)
             return 1
     css = (WEB / "style.css").read_text()
     data, engine, ui = (WEB / "data.js").read_text(), (WEB / "engine.js").read_text(), (WEB / "ui.js").read_text()
+    share = (WEB / "share.js").read_text()
     html = (
         "<!doctype html>\n<html lang=\"en\"><head>\n<meta charset=\"utf-8\">"
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
@@ -80,6 +82,7 @@ def main() -> int:
         + BODY +
         "\n<script>\n" + data + "\n</script>\n"
         "<script>\n" + engine + "\n</script>\n"
+        "<script>\n" + share + "\n</script>\n"
         "<script>\n" + ui + "\n</script>\n"
         "</body></html>\n"
     )

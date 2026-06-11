@@ -70,6 +70,17 @@ undo button.
 The pure-JS engine in `webapp/` is verified to match the PyTorch network's outputs
 (`node scripts/webapp_check.cjs`).
 
+### Sharing games
+
+**🔗 Copy game link** puts the whole game in the URL — board, every move, nothing else needed.
+Send it to anyone: opening the link replays the game to the exact position, with full undo
+history, and they can keep playing from there (the engine waits for *their* move). The format is
+plain text in the fragment (`#g=1.penrose_medium.<fingerprint>.<moves>`), so links work on any
+static host, survive mobile share sheets, and a 100-move game fits in ~330 characters. A
+fingerprint of the board graph guards against links made for a different build of the site.
+Serialization is property-tested (`node scripts/share_check.cjs`: 200 random games × 5
+substrates round-trip to identical positions and superko histories).
+
 ## How strong is it? (an honest answer)
 
 The included network is trained purely by self-play (no human games, no external engines). We

@@ -87,6 +87,14 @@ button:active { transform:translateY(1px); }
 .ghlink { display:inline-flex; align-items:center; gap:6px; margin-top:12px;
   font-size:11.5px; color:var(--muted); text-decoration:none; transition:color .15s; }
 .ghlink:hover { color:var(--accent); }
+/* visible by default — entrance must NOT depend on an animation advancing (background tabs
+   throttle CSS animations, which would pin an animated-from-opacity-0 toast invisible) */
+#toast { position:fixed; top:22px; left:50%; transform:translateX(-50%); z-index:50;
+  max-width:min(86vw, 560px); padding:11px 18px; border-radius:12px; font-size:13px;
+  color:var(--text); background:var(--panel); border:1px solid var(--line); text-align:center;
+  backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+  box-shadow:0 14px 40px rgba(0,0,0,.5); transition:opacity .4s; }
+#toast.off { opacity:0; }
 #scan { position:absolute; inset:0; border-radius:18px; overflow:hidden; pointer-events:none; opacity:0; transition:opacity .2s; }
 #scan.on { opacity:1; }
 #scan::before { content:""; position:absolute; left:0; right:0; height:36%; top:-36%;
