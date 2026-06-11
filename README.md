@@ -64,8 +64,8 @@ undo button.
 | | How | Notes |
 |---|---|---|
 | **Python server** | `uv run python scripts/play.py` | Full analysis (territory/ownership). Needs Python + torch. |
-| **Portable webapp** | open `webapp/tilinggo.html` in any browser | Pure-JS engine, fully offline, no install. Slower on big boards. |
-| **Native macOS app** | `python scripts/build_native.py` → `dist/native/` | C++/Accelerate engine — runs the same net **~45× faster** than the in-browser JS (≈870 vs ≈19 sims/s on a 9×9, equal MCTS). Apple-Silicon, optional. |
+| **Portable webapp** | open `webapp/tilinggo.html` in any browser | **WebAssembly engine** (the C++ engine compiled with SIMD128, ~10× the old JS engine: ≈265 vs ≈25 sims/s on a 9×9) with automatic pure-JS fallback. Fully offline, no install. |
+| **Native macOS app** | `python scripts/build_native.py` → `dist/native/` | C++/Accelerate engine — multi-threaded + AMX, ≈870 sims/s on a 9×9 (~3–4× the in-browser WASM). Apple-Silicon, optional. |
 
 The pure-JS engine in `webapp/` is verified to match the PyTorch network's outputs
 (`node scripts/webapp_check.cjs`).

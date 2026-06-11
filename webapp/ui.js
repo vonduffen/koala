@@ -203,6 +203,63 @@
       el.addEventListener("click", () => onHuman(+el.dataset.node)));
   }
 
+  // ---------- WASM engine (Web Worker; falls back to the JS engine) ----------
+  // The worker is assembled from inline sources so the site stays one static file. Any
+  // failure (no WASM, no SIMD, init error) leaves wasm = null and the JS engine plays.
+  let wasm = null;            // { sps, search(moves, sims) -> Promise<{move,pi,value,ms,sims}> }
+  function bootWasm() {
+    try {
+      if (new URLSearchParams(location.search).get("engine") === "js") return;  // forced fallback
+      const srcEl = document.getElementById("wasm-src");
+      if (!srcEl || typeof Worker === "undefined") return;
+      const blob = new Blob([srcEl.textContent], { type: "text/javascript" });
+      const w = new Worker(URL.createObjectURL(blob));
+      const pend = new Map();
+      let nextId = 1;
+      w.onmessage = (e) => {
+        const m = e.data;
+        if (m.type === "ready") {
+          wasm = {
+            sps: m.sps,
+            search(moves, sims, eps) {
+              return new Promise((res, rej) => {
+                const id = nextId++;
+                pend.set(id, { res, rej });
+                w.postMessage({ type: "search", id, moves, sims, eps: eps || 0 });
+              });
+            },
+          };
+          const tag = $("#engtag"); if (tag) tag.textContent = "engine: WASM ⚡ " + Math.round(m.sps) + " sims/s";
+          return;
+        }
+        if (m.type === "init-error") { console.warn("WASM engine unavailable:", m.message); return; }
+        if (m.type === "result") {
+          const p = pend.get(m.id); if (!p) return;
+          pend.delete(m.id);
+          if (m.move < 0) p.rej(new Error(m.error || "search failed"));
+          else {
+            if (wasm && m.ms > 50) {                // live recalibration from real searches
+              wasm.sps = 0.5 * wasm.sps + 0.5 * (m.sims / m.ms * 1000);
+              const tag = $("#engtag"); if (tag) tag.textContent = "engine: WASM ⚡ " + Math.round(wasm.sps) + " sims/s";
+            }
+            p.res(m);
+          }
+        }
+      };
+      w.onerror = (e) => { console.warn("WASM worker error:", e.message); wasm = null; };
+      const board = { n: B.n, komi: B.komi, edges: B.edges, static: B.static };
+      w.postMessage({ type: "init", board, weights: WASMGLUE.serializeTGN1(net) });
+      wasmWorker = w;
+    } catch (e) { console.warn("WASM boot failed:", e); wasm = null; }
+  }
+  let wasmWorker = null;
+  function rebootWasmForBoard() {                  // new board ⇒ new engine instance
+    wasm = null;
+    const tag = $("#engtag"); if (tag) tag.textContent = "engine: JS";
+    if (wasmWorker) { wasmWorker.terminate(); wasmWorker = null; }
+    bootWasm();
+  }
+
   // ---------- time-budgeted async search ----------
   async function searchMove(budgetMs, cap) {
     const s = TG.makeSearcher(S, B, net);
@@ -219,7 +276,15 @@
   async function engineReply() {                    // engine plays the side to move (one move)
     if (TG.isTerminal(S, B)) return;
     thinking(true); await sleep();
-    const r = await searchMove(STRENGTH[$("#strength").value], 600);
+    const budget = STRENGTH[$("#strength").value];
+    let r = null;
+    if (wasm) {                                     // same WAIT, ~10× the sims (gated: parity +
+      try {                                         // head-to-head verified before default-on)
+        const sims = Math.max(60, Math.min(4000, Math.round(wasm.sps * budget / 1000)));
+        r = await wasm.search(moves, sims, 0);
+      } catch (e) { console.warn("WASM search failed; falling back to JS:", e); r = null; }
+    }
+    if (!r) r = await searchMove(budget, 600);
     S = TG.play(S, r.move, B); moves.push(r.move); lastMove = (r.move === B.pass ? null : r.move);
     thinking(false); draw(); recordWR(); pushPerf(r); persist();
   }
@@ -272,6 +337,7 @@
     curKey = key; lsDel();                            // a new game replaces the saved slot
     lastMove = null; prevMove = 0; hist = []; moves = []; wrHist = []; perfHist = []; lastPerf = null; countedStart = false;
     $("#perf").innerHTML = ""; draw(); recordWR();
+    rebootWasmForBoard();                             // engine instance is per-board-geometry
     // if the human chose White, the engine (Black) opens the game
     if ($("#opponent").value === "engine" && humanColor === TG.WHITE) {
       busy = true;
@@ -359,6 +425,7 @@
       humanColor = color != null ? color : S.toMove;
       $("#playercolor").value = humanColor === TG.BLACK ? "black" : "white";
       draw(); recordWR();
+      rebootWasmForBoard();
     }
 
     // load a shared game from the URL fragment; any problem → friendly toast + fresh game

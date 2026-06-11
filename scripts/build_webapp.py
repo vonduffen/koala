@@ -61,7 +61,8 @@ BODY = """
   <div id="wrgraph"></div>
   <div class="lbl" style="margin-top:14px">Engine performance</div>
   <div id="perf"></div>
-  <div class="perfnote" title="Measured on a 9×9 board at equal MCTS: ≈870 sims/s native vs ≈19 sims/s in-browser. The web engine is pure JavaScript; the native one is C++/Accelerate.">⚡ This runs in pure JavaScript — the <b>native macOS build</b> plays the same engine <b>40× faster</b>.</div>
+  <div class="lbl" id="engtag" style="margin-top:6px">engine: JS</div>
+  <div class="perfnote" title="Measured on a 9×9 board: ≈265 sims/s WASM vs ≈25 sims/s JS in-browser (same machine, equal MCTS); the native C++/Accelerate build does ≈870 sims/s (multi-threaded + AMX, unavailable in a browser). Head-to-head at equal think time the WASM engine beats the old JS engine 84.5% [95% CI 79-89%, n=200].">⚡ In-browser <b>WebAssembly engine</b> — ~10× the search of the old JS engine at the same wait. The <b>native macOS build</b> is another ~4× on top.</div>
   <a class="ghlink" href="https://github.com/vonduffen/euclidean-go" target="_blank" rel="noopener">
     <svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
     open-source on GitHub</a>
@@ -77,14 +78,25 @@ def main() -> int:
     css = (WEB / "style.css").read_text()
     data, engine, ui = (WEB / "data.js").read_text(), (WEB / "engine.js").read_text(), (WEB / "ui.js").read_text()
     share = (WEB / "share.js").read_text() + "\n" + (WEB / "records.js").read_text()
+    glue = (WEB / "wasm_glue.js").read_text()
+    # WASM engine worker bundle, embedded inert (type=text/plain) — ui.js assembles a Worker
+    # from it via a Blob URL, keeping the site a single static file. If tgwasm.js is missing
+    # (no emscripten on this machine) the page simply falls back to the JS engine.
+    tgwasm_p = WEB / "tgwasm.js"
+    worker_src = ""
+    if tgwasm_p.exists():
+        worker_src = (tgwasm_p.read_text() + "\n" + glue + "\n"
+                      + (WEB / "engine_worker.js").read_text()).replace("</script", "<\\/script")
     html = (
         "<!doctype html>\n<html lang=\"en\"><head>\n<meta charset=\"utf-8\">"
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
         "<title>Euclidean Go</title>\n<style>\n" + css + "\n</style>\n</head>\n<body>\n"
         + BODY +
-        "\n<script>\n" + data + "\n</script>\n"
+        ("\n<script type=\"text/plain\" id=\"wasm-src\">\n" + worker_src + "\n</script>\n" if worker_src else "")
+        + "\n<script>\n" + data + "\n</script>\n"
         "<script>\n" + engine + "\n</script>\n"
         "<script>\n" + share + "\n</script>\n"
+        "<script>\n" + glue + "\n</script>\n"
         "<script>\n" + ui + "\n</script>\n"
         "</body></html>\n"
     )

@@ -19,3 +19,26 @@ jobs:
 
       - name: Run test suite
         run: uv run pytest -q
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: JS/PyTorch parity (webapp engine)
+        run: node scripts/webapp_check.cjs
+
+      - name: Share-link serialization (round-trip + malformed)
+        run: node scripts/share_check.cjs
+
+      - name: Game records (round-trip + SGF)
+        run: node scripts/record_check.cjs
+
+      - name: Stone contrast (both themes >= 3:1)
+        run: node scripts/contrast_check.cjs
+
+      # tgwasm.js is a committed build artifact (scripts/build_wasm.sh, needs emscripten);
+      # CI verifies the committed module: parity vs the JS engine + the >=10x speed gate
+      # (a ratio, so it is robust to slow runners).
+      - name: WASM engine (parity + speed gates)
+        run: node scripts/wasm_check.cjs
