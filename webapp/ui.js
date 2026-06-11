@@ -344,6 +344,7 @@
   function newGame(key) {
     B = TG.makeBoard(BOARDS[key]); S = TG.newGame(B);
     curKey = key; lsDel();                            // a new game replaces the saved slot
+    try { localStorage.setItem("eg-last-key", key); } catch (e) {}  // substrate preference
     lastMove = null; prevMove = 0; hist = []; moves = []; wrHist = []; perfHist = []; lastPerf = null; countedStart = false;
     $("#perf").innerHTML = ""; draw(); recordWR();
     rebootWasmForBoard();                             // engine instance is per-board-geometry
@@ -534,9 +535,20 @@
 
     const savedGame = lsGet();                         // read BEFORE newGame clears the slot
     if (!loadShared()) {
-      selectKey(BOARDS["penrose_medium"] ? "penrose_medium" : Object.keys(BOARDS)[0]);
+      // returning visitors get their last substrate; first-timers a small hex board — friendly
+      // size, instantly playable, and unmistakably "not a normal Go board"
+      let lastKey = null;
+      try { lastKey = localStorage.getItem("eg-last-key"); } catch (e) {}
+      const firstRun = !lastKey;
+      const startKey = (lastKey && BOARDS[lastKey]) ? lastKey
+                     : (BOARDS["hex_small"] ? "hex_small" : Object.keys(BOARDS)[0]);
+      selectKey(startKey);
       newGame(currentKey());
       if (savedGame) offerResume(savedGame);
+      if (firstRun) {
+        const h = $("#hint");
+        if (h) h.textContent = "tap any intersection to place a stone · more boards in the menu";
+      }
     }
     const sp = $("#splash");                       // loading splash: engine is ready, fade it out
     if (sp) { sp.classList.add("off"); setTimeout(() => sp.remove(), 450); }
