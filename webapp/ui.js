@@ -119,6 +119,15 @@
     document.body.appendChild(t);
     setTimeout(() => { t.classList.add("off"); setTimeout(() => t.remove(), 400); }, 6000);
   }
+  function showComment(text) {                        // persistent note chip from a shared link.
+    let c = $("#notechip"); if (c) c.remove();        // textContent only — never parsed as HTML,
+    c = document.createElement("div");                // so script payloads stay inert text
+    c.id = "notechip";
+    const span = document.createElement("span"); span.textContent = text;
+    const x = document.createElement("button"); x.textContent = "×"; x.onclick = () => c.remove();
+    c.append(span, x);
+    document.body.appendChild(c);
+  }
 
   // ---------- local persistence (survives refresh; degrades silently without storage) ----------
   const LS_KEY = "eg-game-v1";
@@ -395,8 +404,8 @@
     };
     // shareable links: copy serializes the CURRENT position into the fragment (lazy — we never
     // touch the URL on ordinary moves, so browser history stays clean)
-    $("#share").onclick = async () => {
-      const frag = SHARE.serialize(currentKey(), B, moves);
+    const copyShareLink = async (btn, opts) => {
+      const frag = SHARE.serialize(currentKey(), B, moves, opts);
       history.replaceState(null, "", "#" + frag);
       let ok = true;
       try { await navigator.clipboard.writeText(location.href); }
@@ -406,9 +415,16 @@
           document.body.appendChild(ta); ta.select(); ok = document.execCommand("copy"); ta.remove();
         } catch (e2) { ok = false; }
       }
-      const btn = $("#share"), old = btn.textContent;
+      const old = btn.textContent;
       btn.textContent = ok ? "✓ Link copied" : "⚠ Copy failed — copy the URL bar";
       setTimeout(() => { btn.textContent = old; }, 1600);
+    };
+    $("#share").onclick = () => copyShareLink($("#share"));
+    $("#sharea").onclick = () => {                  // analysis link, with an optional note
+      let note = null;
+      try { note = window.prompt("Add a note to this position? (optional, shown to the recipient)", ""); } catch (e) {}
+      if (note === null) return;                    // cancelled
+      copyShareLink($("#sharea"), { analysis: true, comment: note.trim() || undefined });
     };
 
     // install a replayed game (shared link or resumed save) into the live UI.
@@ -438,6 +454,11 @@
       try {
         installGame(parsed, null);                     // sharee plays the side to move
         toast(`Shared game loaded — move ${S.moveNum}, ${S.toMove === TG.BLACK ? "Black" : "White"} to play. That's you.`);
+        if (parsed.comment) showComment(parsed.comment);
+        if (parsed.analysis && !TG.isTerminal(S, B)) { // sender asked for the overlay open
+          busy = true;
+          analyze().finally(() => { busy = false; });  // async; board stays interactive after
+        }
         return true;
       } catch (e) {
         toast(`Couldn't load the shared game (${e.message || e}) — starting fresh.`);

@@ -41,7 +41,7 @@ BODY = """
   <select id="strength"><option selected>Fast</option><option>Normal</option><option>Strong</option></select>
   <button id="analyze" class="cta">⌖ Analyze position</button>
   <div class="row"><button id="pass">Pass</button><button id="undo">Undo</button><button id="reset">New game</button></div>
-  <button id="share" style="margin-top:8px">🔗 Copy game link</button>
+  <div class="row" style="margin-top:8px"><button id="share">🔗 Copy game link</button><button id="sharea" title="Link opens with the analysis overlay + an optional note">⌖ +analysis</button></div>
   <div class="row"><button id="dlrec" title="Download the game as a JSON record">⬇ Record</button><button id="dlsgf" title="Download as SGF (square boards)">⬇ SGF</button><button id="ldrec" title="Load a saved record">⬆ Load</button></div>
   <input type="file" id="recfile" accept=".json,application/json" style="display:none">
   <label class="chk"><input type="checkbox" id="auto"> Auto-analyze each move</label>

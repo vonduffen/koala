@@ -38,14 +38,36 @@
     return h.toString(36).slice(0, 6);
   }
 
-  function serialize(boardKey, board, moves) {
+  const COMMENT_MAX = 280;
+
+  function serialize(boardKey, board, moves, opts) {
     const toks = moves.map(m => (m === PASS || m === board.pass) ? "-" : m.toString(36));
-    return `g=${VERSION}.${boardKey}.${fingerprint(board)}` + (toks.length ? "." + toks.join(".") : "");
+    let frag = `g=${VERSION}.${boardKey}.${fingerprint(board)}` + (toks.length ? "." + toks.join(".") : "");
+    if (opts && opts.analysis) frag += "&a=1";
+    if (opts && opts.comment) {
+      const c = String(opts.comment).slice(0, COMMENT_MAX);
+      frag += "&c=" + encodeURIComponent(c);
+    }
+    return frag;
   }
 
   function parse(fragment) {
-    const frag = (fragment || "").replace(/^#/, "");
+    let frag = (fragment || "").replace(/^#/, "");
     if (!frag.startsWith("g=")) return null;             // not a game link — caller ignores
+    // optional &-params after the move list: a=1 (auto-open analysis), c=<comment>
+    let analysis = false, comment = null;
+    const amp = frag.indexOf("&");
+    if (amp >= 0) {
+      for (const kv of frag.slice(amp + 1).split("&")) {
+        const eq = kv.indexOf("=");
+        const k = eq < 0 ? kv : kv.slice(0, eq), v = eq < 0 ? "" : kv.slice(eq + 1);
+        if (k === "a") analysis = v === "1";
+        else if (k === "c") {
+          try { comment = decodeURIComponent(v).slice(0, COMMENT_MAX); } catch (e) { comment = null; }
+        }
+      }
+      frag = frag.slice(0, amp);
+    }
     const parts = frag.slice(2).split(".");
     if (parts.length < 3) throw new ShareError("BAD_FORMAT", "link is truncated");
     const version = parseInt(parts[0], 10);
@@ -61,7 +83,7 @@
       if (!/^[0-9a-z]+$/.test(t)) throw new ShareError("BAD_FORMAT", `malformed move "${t}"`);
       moves.push(parseInt(t, 36));
     }
-    return { version, key, fp, moves };
+    return { version, key, fp, moves, analysis, comment };
   }
 
   /* Replay a parsed move list through the rules engine on a fresh board.
@@ -84,7 +106,7 @@
     return { state: s, snaps };
   }
 
-  const SHARE = { VERSION, PASS, ShareError, fingerprint, serialize, parse, replay };
+  const SHARE = { VERSION, PASS, COMMENT_MAX, ShareError, fingerprint, serialize, parse, replay };
   root.SHARE = SHARE;
   if (typeof module !== "undefined") module.exports = SHARE;
 })(typeof globalThis !== "undefined" ? globalThis : this);

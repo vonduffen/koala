@@ -104,6 +104,25 @@ expectError("illegal move (occupied)", "ILLEGAL_MOVE",
 if (SHARE.parse("#foo=bar") !== null) fail("non-game fragment should parse to null");
 else console.log("malformed ok: non-game fragment → ignored (null)");
 
+// ---- analysis links (Task 6): flag + comment round-trip; plain links unaffected -----------
+{
+  const payload = '<script>alert(1)</script> & "quotes" + émoji 🎯';
+  const frag = SHARE.serialize(sq, sqBoard, [5, 7], { analysis: true, comment: payload });
+  const p = SHARE.parse("#" + frag);
+  if (!p.analysis) fail("analysis flag lost");
+  if (p.comment !== payload) fail(`comment round-trip mangled: ${JSON.stringify(p.comment)}`);
+  if (p.moves.length !== 2) fail("moves corrupted by &-params");
+  const plain = SHARE.parse("#" + SHARE.serialize(sq, sqBoard, [5, 7]));
+  if (plain.analysis !== false || plain.comment !== null) fail("plain link not identical to Task 1 semantics");
+  const long = SHARE.parse("#" + SHARE.serialize(sq, sqBoard, [], { comment: "x".repeat(900) }));
+  if (long.comment.length !== SHARE.COMMENT_MAX) fail(`comment cap not enforced (${long.comment.length})`);
+  // replay must ignore the extras entirely
+  const r = SHARE.replay(TG, sqBoard, p);
+  if (r.state.moveNum !== 2) fail("replay broken by analysis params");
+  console.log(`analysis links ok: flag + ${payload.length}-char hostile comment round-trip, ` +
+              `cap ${SHARE.COMMENT_MAX}, plain links unchanged`);
+}
+
 // ---- 3. persistence round-trip (the localStorage record schema, simulated reload) --------
 // Mirrors ui.js persist()/lsGet(): the game travels as JSON through a storage stub, then is
 // replayed on "reload". Catches JSON escaping/typing issues in the stored record.

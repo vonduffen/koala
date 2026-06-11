@@ -104,6 +104,14 @@ button:active { transform:translateY(1px); }
 #resume button { width:auto; padding:8px 14px; font-size:12.5px; border:none; color:#04120e;
   font-weight:700; background:linear-gradient(135deg, var(--accent), #14d6ff); border-radius:9px; }
 #resume button.ghost { background:transparent; color:var(--muted); border:1px solid var(--line); font-weight:500; }
+#notechip { position:fixed; top:22px; left:50%; transform:translateX(-50%); z-index:48;
+  display:flex; align-items:center; gap:10px; max-width:min(86vw, 560px); padding:10px 14px;
+  border-radius:12px; font-size:13px; color:var(--text); background:var(--panel);
+  border:1px solid rgba(0,255,194,0.35); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+  box-shadow:0 14px 40px rgba(0,0,0,.5); }
+#notechip span { white-space:pre-wrap; word-break:break-word; }
+#notechip button { width:auto; padding:2px 8px; font-size:14px; line-height:1;
+  background:transparent; border:none; color:var(--muted); }
 #scan { position:absolute; inset:0; border-radius:18px; overflow:hidden; pointer-events:none; opacity:0; transition:opacity .2s; }
 #scan.on { opacity:1; }
 #scan::before { content:""; position:absolute; left:0; right:0; height:36%; top:-36%;
