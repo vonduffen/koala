@@ -48,3 +48,8 @@ jobs:
       # (a ratio, so it is robust to slow runners).
       - name: WASM engine (parity + speed gates)
         run: node scripts/wasm_check.cjs
+
+      # tracked metric, not a gate: life-and-death accuracy of the shipped checkpoint
+      - name: L&D suite score (non-blocking)
+        continue-on-error: true
+        run: uv run python scripts/lnd_score.py

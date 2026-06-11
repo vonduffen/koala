@@ -1,0 +1,1 @@
+{"colors": [2, 0, 0, 1, 1, 1, 1, 2, 2, 0, 0, 0, 0, 1, 2, 0, 2, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 2, 2, 2, 0, 1, 2, 0, 0, 0, 0, 0, 1, 0], "to_move": 1, "group": [3, 4, 5, 6, 13, 22, 23, 26, 27, 32, 37, 44], "expected": {"status": "dead"}, "eyes": [32], "id": "penrose_small_one_eye_4", "board_key": "penrose_small", "kind": "one_eye"}

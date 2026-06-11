@@ -1,0 +1,1 @@
+{"colors": [1, 1, 1, 2, 2, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1], "to_move": 1, "group": [3, 4], "expected": {"moves": [32]}, "id": "penrose_small_capture_vital_7", "board_key": "penrose_small", "kind": "capture_vital"}

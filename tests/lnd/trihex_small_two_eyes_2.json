@@ -1,0 +1,1 @@
+{"colors": [0, 2, 0, 0, 0, 0, 2, 0, 1, 0, 1, 0, 0, 0, 2, 2, 1, 2, 1, 1, 1, 1, 0, 0, 0, 2, 0, 1, 1, 2, 1, 1, 1, 1, 0, 0, 0, 0, 0, 2, 0, 2], "to_move": 2, "group": [8, 9, 10, 16, 18, 19, 20, 21, 22, 27, 28, 30, 31, 32, 33], "expected": {"status": "alive"}, "eyes": [9, 22], "id": "trihex_small_two_eyes_2", "board_key": "trihex_small", "kind": "two_eyes"}

@@ -1,0 +1,1 @@
+{"colors": [1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 2, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "to_move": 1, "group": [16], "expected": {"moves": [17]}, "id": "hex_small_capture_vital_6", "board_key": "hex_small", "kind": "capture_vital"}

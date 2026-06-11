@@ -1,0 +1,1 @@
+{"colors": [0, 0, 0, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 0, 0, 0, 1, 1, 0, 0, 2, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 2, 0, 0, 0, 2, 0, 2, 2, 0], "to_move": 2, "group": [13, 14, 15, 16, 22, 23, 27, 32, 33, 34, 36], "expected": {"status": "alive"}, "eyes": [36, 13], "id": "penrose_small_two_eyes_1", "board_key": "penrose_small", "kind": "two_eyes"}
