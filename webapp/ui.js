@@ -46,7 +46,7 @@
   // board colour palettes per theme (the SVG is regenerated each draw, so it reads the live theme)
   const THEMES = {
     dark:  { boardBg: "url(#bgs)", line: "#454c5e", lineOp: 0.85, legal: "#5a6478", last: "#00ffc2",
-             bStroke: "#000000", wStroke: "#aab0c0", ownB: "#0a0d10", ownW: "#f4f4f2",
+             bStroke: "#78839b", wStroke: "#aab0c0", ownB: "#0a0d10", ownW: "#f4f4f2",
              gBg: "#0b0d13", gLine: "#2a313c", gPath: "#00ffc2" },
     light: { boardBg: "#efe8d6", line: "#3d4350", lineOp: 0.92, legal: "#7a8290", last: "#0a9c79",
              bStroke: "#14171d", wStroke: "#586071", ownB: "#2b3140", ownW: "#9fb2d6",
@@ -77,7 +77,7 @@
     for (let i = 0; i < n; i++) {
       const c = colors[i]; if (c === 0) continue;
       const x = tx(coords[i][0]), y = ty(coords[i][1]);
-      o.push(`<circle cx="${fmt(x)}" cy="${fmt(y)}" r="${fmt(rS)}" fill="${c === 1 ? "url(#bz)" : "url(#wz)"}" stroke="${c === 1 ? T.bStroke : T.wStroke}" stroke-width="0.7" filter="url(#sh)"/>`);
+      o.push(`<circle cx="${fmt(x)}" cy="${fmt(y)}" r="${fmt(rS)}" fill="${c === 1 ? "url(#bz)" : "url(#wz)"}" stroke="${c === 1 ? T.bStroke : T.wStroke}" stroke-width="0.9" filter="url(#sh)"/>`);
       if (last === i) o.push(`<circle cx="${fmt(x)}" cy="${fmt(y)}" r="${fmt(rS * 0.4)}" fill="none" stroke="${T.last}" stroke-width="2.2" filter="url(#gl)"/>`);
     }
     if (analysis) {
