@@ -17,6 +17,12 @@ jobs:
       - name: Install dependencies (with dev extras)
         run: uv sync --extra dev
 
+      # webapp/data.js is a derived artifact (baked boards + weights from the committed
+      # champion checkpoint) and is gitignored; the JS/WASM checks and the cross-language
+      # record tests all load it, so regenerate it first.
+      - name: Generate webapp data (boards + weights)
+        run: uv run python scripts/export_webapp.py
+
       - name: Run test suite
         run: uv run pytest -q
 
