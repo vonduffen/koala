@@ -112,6 +112,17 @@ button:active { transform:translateY(1px); }
 #notechip span { white-space:pre-wrap; word-break:break-word; }
 #notechip button { width:auto; padding:2px 8px; font-size:14px; line-height:1;
   background:transparent; border:none; color:var(--muted); }
+#endbanner { position:fixed; top:42%; left:50%; transform:translate(-50%,-50%); z-index:60;
+  display:flex; flex-direction:column; align-items:center; gap:8px; padding:26px 38px;
+  border-radius:18px; background:var(--panel); border:1px solid rgba(0,255,194,0.3);
+  backdrop-filter:blur(24px) saturate(1.4); -webkit-backdrop-filter:blur(24px) saturate(1.4);
+  box-shadow:0 30px 80px rgba(0,0,0,.65); text-align:center; }
+.endtitle { font-size:24px; font-weight:700; color:var(--text); }
+.endsub { font-size:12px; color:var(--muted); }
+.endrow { display:flex; gap:10px; margin-top:10px; }
+.endrow button { width:auto; padding:9px 18px; border:none; border-radius:10px; color:#04120e;
+  font-weight:700; background:linear-gradient(135deg, var(--accent), #14d6ff); }
+.endrow button.ghost { background:transparent; color:var(--muted); border:1px solid var(--line); font-weight:500; }
 #scan { position:absolute; inset:0; border-radius:18px; overflow:hidden; pointer-events:none; opacity:0; transition:opacity .2s; }
 #scan.on { opacity:1; }
 #scan::before { content:""; position:absolute; left:0; right:0; height:36%; top:-36%;

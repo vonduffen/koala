@@ -191,14 +191,22 @@
   // ---------- render state ----------
   function draw() {
     const legal = TG.legalMoves(S, B);
-    $("#board").innerHTML = renderSVG(B, S.colors, lastMove, legal, null);
-    const term = TG.isTerminal(S, B), sd = Math.round(TG.scoreDiff(S, B) * 10) / 10;
+    const term = TG.isTerminal(S, B), over = term || resigned !== null;
+    const sd = Math.round(TG.scoreDiff(S, B) * 10) / 10;
+    // at the natural end, show the actual area result on the board (territory overlay)
+    const overlay = term ? { moves: [], ownership: TG.ownership(S, B), best: null } : null;
+    $("#board").innerHTML = renderSVG(B, S.colors, lastMove, legal, overlay);
     $("#turndot").style.background = S.toMove === TG.BLACK ? "#111417" : "#f4f4f2";
-    $("#turn").textContent = (S.toMove === TG.BLACK ? "Black" : "White") + " to move";
+    $("#turn").textContent = over ? "game over"
+                                  : (S.toMove === TG.BLACK ? "Black" : "White") + " to move";
     $("#score").textContent = (sd > 0 ? "B+" : sd < 0 ? "W+" : "") + (sd ? Math.abs(sd) : "0");
     $("#move").textContent = "move " + S.moveNum + (S.passCount ? " · " + S.passCount + "p" : "");
     if (term) { const w = TG.winner(S, B) === TG.BLACK ? "Black" : "White"; $("#msg").innerHTML = `<span class="win">${w} wins by ${Math.abs(sd)}</span>`; }
+    else if (resigned !== null) { const w = resigned === TG.BLACK ? "White" : "Black"; $("#msg").innerHTML = `<span class="win">${w} wins by resignation</span>`; }
+    else if (S.passCount === 1) $("#msg").textContent = "one pass — pass again to end and score";
     else $("#msg").textContent = "";
+    if (over) showEndBanner(term, sd);
+    else { const eb = $("#endbanner"); if (eb) eb.remove(); }
     if (S.moveNum > prevMove) clack(); prevMove = S.moveNum;
     $("#winpct").textContent = "—"; $("#topmv").innerHTML = "";
     const hint = $("#hint");                       // first-move hint: gone once a stone is down
@@ -211,11 +219,42 @@
     document.querySelectorAll("#board .hot").forEach(el =>
       el.addEventListener("click", () => onHuman(+el.dataset.node)));
   }
+  function showEndBanner(term, sd) {               // unmissable result; no silent end states
+    if ($("#endbanner")) return;
+    const b = document.createElement("div"); b.id = "endbanner";
+    const h = document.createElement("div"); h.className = "endtitle";
+    const sub = document.createElement("div"); sub.className = "endsub";
+    if (term) {
+      h.textContent = (TG.winner(S, B) === TG.BLACK ? "Black" : "White") + ` wins by ${Math.abs(sd)}`;
+      sub.textContent = `area scoring · komi ${B.komi} · territory shown on the board`;
+    } else {
+      h.textContent = (resigned === TG.BLACK ? "White" : "Black") + " wins";
+      sub.textContent = "the engine resigned";
+    }
+    const row = document.createElement("div"); row.className = "endrow";
+    const again = document.createElement("button"); again.textContent = "New game";
+    again.onclick = () => { b.remove(); $("#reset").click(); };
+    const look = document.createElement("button"); look.textContent = "Inspect board";
+    look.className = "ghost"; look.onclick = () => b.remove();
+    row.append(again, look);
+    b.append(h, sub, row);
+    document.body.appendChild(b);
+  }
 
   // ---------- WASM engine (Web Worker; falls back to the JS engine) ----------
   // The worker is assembled from inline sources so the site stays one static file. Any
   // failure (no WASM, no SIMD, init error) leaves wasm = null and the JS engine plays.
   let wasm = null;            // { sps, search(moves, sims) -> Promise<{move,pi,value,ms,sims}> }
+  let resigned = null;        // null | TG.BLACK | TG.WHITE — the side that resigned (engine only)
+  let hopeless = 0;           // consecutive engine moves with a hopeless self-winrate
+  // resignation is configurable: ?resign=wr,streak,minMove (or window.EG_RESIGN pre-load)
+  const RESIGN = Object.assign({ wr: 0.04, streak: 4, minMove: 16 },
+                               (typeof window !== "undefined" && window.EG_RESIGN) || {});
+  try {
+    const rs = new URLSearchParams(location.search).get("resign");
+    if (rs) { const [w, s, m] = rs.split(",").map(Number);
+      if (w > 0) RESIGN.wr = w; if (s > 0) RESIGN.streak = s; if (m >= 0) RESIGN.minMove = m; }
+  } catch (e) {}
   function bootWasm() {
     try {
       if (new URLSearchParams(location.search).get("engine") === "js") return;  // forced fallback
@@ -283,7 +322,7 @@
   }
 
   async function engineReply() {                    // engine plays the side to move (one move)
-    if (TG.isTerminal(S, B)) return;
+    if (TG.isTerminal(S, B) || resigned !== null) return;
     thinking(true); await sleep();
     const budget = STRENGTH[$("#strength").value];
     let r = null;
@@ -296,10 +335,25 @@
     if (!r) r = await searchMove(budget, 600);
     S = TG.play(S, r.move, B); moves.push(r.move); lastMove = (r.move === B.pass ? null : r.move);
     thinking(false); draw(); recordWR(); pushPerf(r); persist();
+    if (r.move === B.pass && !TG.isTerminal(S, B))
+      toast("The engine passes — pass too to end the game and score, or keep playing.");
+    // resignation: hopeless self-winrate for RESIGN.streak consecutive engine moves
+    const bw = wrHist[S.moveNum];
+    if (typeof bw === "number" && S.moveNum >= RESIGN.minMove && !TG.isTerminal(S, B)) {
+      const engineBlack = humanColor !== TG.BLACK;
+      const engWr = engineBlack ? bw : 1 - bw;
+      hopeless = engWr < RESIGN.wr ? hopeless + 1 : 0;
+      if (hopeless >= RESIGN.streak) {
+        resigned = engineBlack ? TG.BLACK : TG.WHITE;
+        lsDel();                                    // a resigned game is finished
+        draw();
+        toast("The engine resigns. Good game!");
+      }
+    }
   }
 
   async function onHuman(node) {
-    if (busy) return;
+    if (busy || resigned !== null) return;
     const opp = $("#opponent").value;
     if (opp === "engine" && S.toMove !== humanColor) return;   // not your turn — engine to play
     const legal = TG.legalMoves(S, B);
@@ -346,6 +400,7 @@
     curKey = key; lsDel();                            // a new game replaces the saved slot
     try { localStorage.setItem("eg-last-key", key); } catch (e) {}  // substrate preference
     lastMove = null; prevMove = 0; hist = []; moves = []; wrHist = []; perfHist = []; lastPerf = null; countedStart = false;
+    resigned = null; hopeless = 0;
     $("#perf").innerHTML = ""; draw(); recordWR();
     rebootWasmForBoard();                             // engine instance is per-board-geometry
     // if the human chose White, the engine (Black) opens the game
@@ -371,12 +426,13 @@
     $("#analyze").onclick = async () => { if (busy) return; busy = true; try { await analyze(); } finally { busy = false; } };
     $("#undo").onclick = () => {
       if (busy || !hist.length) return;
+      resigned = null; hopeless = 0;                  // undo reopens a resigned game
       const h = hist.pop(); S = h.s; lastMove = h.last; prevMove = S.moveNum; draw();
       moves.length = S.moveNum;                       // keep the share-link move list in sync
       wrHist.length = S.moveNum + 1; recordWR();      // trim the win-rate curve to match
       persist();
     };
-    $("#pass").onclick = async () => { if (busy) return; busy = true; try { hist.push({ s: S, last: lastMove }); S = TG.play(S, B.pass, B); moves.push(B.pass); lastMove = null; draw(); recordWR(); persist(); if ($("#opponent").value === "engine") await engineReply(); } finally { busy = false; } };
+    $("#pass").onclick = async () => { if (busy || resigned !== null) return; busy = true; try { hist.push({ s: S, last: lastMove }); S = TG.play(S, B.pass, B); moves.push(B.pass); lastMove = null; draw(); recordWR(); persist(); if ($("#opponent").value === "engine") await engineReply(); } finally { busy = false; } };
     $("#reset").onclick = () => { if (!busy) newGame(currentKey()); };
     famSel.onchange = () => { if (busy) return; fillVariants(+famSel.value); newGame(currentKey()); };
     varSel.onchange = () => { if (!busy) newGame(currentKey()); };
@@ -439,6 +495,7 @@
       const lastPly = moves.length ? moves[moves.length - 1] : null;
       lastMove = (lastPly === null || lastPly === B.pass) ? null : lastPly;
       prevMove = S.moveNum; wrHist = []; perfHist = []; lastPerf = null; countedStart = false;
+      resigned = null; hopeless = 0;
       humanColor = color != null ? color : S.toMove;
       $("#playercolor").value = humanColor === TG.BLACK ? "black" : "white";
       draw(); recordWR();
@@ -506,6 +563,7 @@
       a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
     };
     const resultStr = () => {
+      if (resigned !== null) return resigned === TG.BLACK ? "W+R" : "B+R";
       if (!TG.isTerminal(S, B)) return null;
       const sd = Math.round(TG.scoreDiff(S, B) * 10) / 10;
       return (sd > 0 ? "B+" : "W+") + Math.abs(sd);
