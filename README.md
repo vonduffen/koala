@@ -106,6 +106,10 @@ snub-square tiling, or an aperiodic Penrose patch. The board is data, not archit
 it a small testbed for a real question: **does a model learn substrate-invariant concepts, or does
 it memorize a grid?**
 
+For the full picture — tiling compiler → BoardGraph → geometry-blind GNN → MCTS, with a
+diagram and links to the evidence for every claim — see
+**[docs/how-it-works.md](docs/how-it-works.md)**.
+
 ## Architecture
 
 ```

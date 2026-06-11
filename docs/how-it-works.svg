@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 260" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10z" fill="#5a6478"/>
+    </marker>
+  </defs>
+  <rect width="920" height="260" rx="14" fill="#0b0d13"/>
+
+  <!-- stage 1: tilings -->
+  <g>
+    <rect x="22" y="38" width="188" height="168" rx="12" fill="#10131c" stroke="#2a313c"/>
+    <text x="116" y="62" fill="#e8ebf2" font-size="14" font-weight="600" text-anchor="middle">Tiling compiler</text>
+    <text x="116" y="80" fill="#828c9c" font-size="11" text-anchor="middle">square · hex · snub · Penrose…</text>
+    <!-- mini square grid (2×2) -->
+    <g stroke="#454c5e" stroke-width="1.2" fill="none">
+      <path d="M42 100h44M42 122h44M42 144h44M42 100v44M64 100v44M86 100v44"/>
+    </g>
+    <!-- two clean pointy-top hexagons sharing an edge -->
+    <g stroke="#454c5e" stroke-width="1.2" fill="none">
+      <path d="M151.3 110.5L140 104L128.7 110.5L128.7 123.5L140 130L151.3 123.5Z"/>
+      <path d="M173.9 110.5L162.6 104L151.3 110.5L151.3 123.5L162.6 130L173.9 123.5Z"/>
+    </g>
+    <!-- thick + thin rhombs sharing an edge (Penrose hint), both closed -->
+    <g stroke="#454c5e" stroke-width="1.2" fill="none">
+      <path d="M62 168L78 159L94 168L78 177Z"/>
+      <path d="M94 168L114 163L122 172L102 177Z"/>
+      <path d="M78 177L94 168L102 177L86 186Z"/>
+    </g>
+    <text x="116" y="199" fill="#5a6478" font-size="10" text-anchor="middle">vertices + edges, canonical order</text>
+  </g>
+  <line x1="212" y1="122" x2="248" y2="122" stroke="#5a6478" stroke-width="1.6" marker-end="url(#arr)"/>
+
+  <!-- stage 2: BoardGraph -->
+  <g>
+    <rect x="252" y="38" width="178" height="168" rx="12" fill="#10131c" stroke="#2a313c"/>
+    <text x="341" y="62" fill="#e8ebf2" font-size="14" font-weight="600" text-anchor="middle">BoardGraph</text>
+    <text x="341" y="80" fill="#828c9c" font-size="11" text-anchor="middle">stones live on nodes</text>
+    <g stroke="#454c5e" stroke-width="1.3">
+      <path d="M290 120L320 102L355 112L385 100M320 102L330 138M355 112L362 146M290 120L300 156L330 138L362 146L394 132M385 100L394 132" fill="none"/>
+    </g>
+    <g>
+      <circle cx="290" cy="120" r="8" fill="#101317" stroke="#78839b"/>
+      <circle cx="320" cy="102" r="8" fill="#f1f3f7" stroke="#aab0c0"/>
+      <circle cx="355" cy="112" r="8" fill="#101317" stroke="#78839b"/>
+      <circle cx="330" cy="138" r="8" fill="#f1f3f7" stroke="#aab0c0"/>
+      <circle cx="385" cy="100" r="4" fill="#5a6478"/>
+      <circle cx="300" cy="156" r="4" fill="#5a6478"/>
+      <circle cx="362" cy="146" r="4" fill="#5a6478"/>
+      <circle cx="394" cy="132" r="4" fill="#5a6478"/>
+    </g>
+    <text x="341" y="182" fill="#5a6478" font-size="10" text-anchor="middle">Tromp–Taylor rules over</text>
+    <text x="341" y="196" fill="#5a6478" font-size="10" text-anchor="middle">arbitrary adjacency</text>
+  </g>
+  <line x1="432" y1="122" x2="468" y2="122" stroke="#5a6478" stroke-width="1.6" marker-end="url(#arr)"/>
+
+  <!-- stage 3: GNN -->
+  <g>
+    <rect x="472" y="38" width="208" height="168" rx="12" fill="#10131c" stroke="#2a313c"/>
+    <text x="576" y="62" fill="#e8ebf2" font-size="14" font-weight="600" text-anchor="middle">Geometry-blind GNN</text>
+    <text x="576" y="80" fill="#828c9c" font-size="11" text-anchor="middle">8 × message passing</text>
+    <!-- center node aggregating neighbors -->
+    <g stroke="#2bd9a8" stroke-width="1.4" opacity="0.85">
+      <path d="M540 130L576 118M612 134L576 118M566 158L576 118M598 96L576 118" fill="none"/>
+    </g>
+    <circle cx="576" cy="118" r="10" fill="#0a9c79"/>
+    <circle cx="540" cy="130" r="6" fill="#39414f"/>
+    <circle cx="612" cy="134" r="6" fill="#39414f"/>
+    <circle cx="566" cy="158" r="6" fill="#39414f"/>
+    <circle cx="598" cy="96" r="6" fill="#39414f"/>
+    <text x="576" y="180" fill="#5a6478" font-size="10" text-anchor="middle">mean/max of neighbours + global —</text>
+    <text x="576" y="193" fill="#5a6478" font-size="10" text-anchor="middle">no grid, no coordinates, any degree</text>
+  </g>
+  <line x1="682" y1="122" x2="718" y2="122" stroke="#5a6478" stroke-width="1.6" marker-end="url(#arr)"/>
+
+  <!-- stage 4: heads + MCTS -->
+  <g>
+    <rect x="722" y="38" width="176" height="168" rx="12" fill="#10131c" stroke="#2a313c"/>
+    <text x="810" y="62" fill="#e8ebf2" font-size="14" font-weight="600" text-anchor="middle">MCTS</text>
+    <text x="810" y="80" fill="#828c9c" font-size="11" text-anchor="middle">policy · value · ownership</text>
+    <g stroke="#454c5e" stroke-width="1.3" fill="none">
+      <path d="M810 100v18M810 118L778 140M810 118L842 140M778 140l-14 22M778 140l14 22M842 140l-12 22M842 140l16 22"/>
+    </g>
+    <circle cx="810" cy="100" r="7" fill="#0a9c79"/>
+    <circle cx="778" cy="140" r="6" fill="#39414f"/>
+    <circle cx="842" cy="140" r="6" fill="#39414f"/>
+    <circle cx="764" cy="162" r="5" fill="#262c38"/>
+    <circle cx="792" cy="162" r="5" fill="#262c38"/>
+    <circle cx="830" cy="162" r="5" fill="#262c38"/>
+    <circle cx="858" cy="162" r="5" fill="#262c38"/>
+    <text x="810" y="193" fill="#5a6478" font-size="10" text-anchor="middle">same weights: PyTorch · C++ · WASM</text>
+  </g>
+
+  <text x="460" y="240" fill="#5a6478" font-size="11" text-anchor="middle">one network, every tiling — trained by self-play on a mixture of substrates, playing boards it has never seen</text>
+</svg>
