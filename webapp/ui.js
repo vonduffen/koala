@@ -9,6 +9,7 @@
   let hist = [];   // undo stack: snapshots taken before each human turn / pass (state is immutable)
   let moves = [];  // every committed ply in order (node index or B.pass) — drives share links;
                    // invariant: moves.length === S.moveNum
+  let curKey = null;  // catalogue key of the current board (for share links + persistence)
   let wrHist = []; // black win-rate per move index (drives the win-rate graph)
   let perfHist = [], lastPerf = null; // engine sims/sec history (drives the performance analyzer)
   let humanColor = TG.BLACK;  // which colour the human plays vs the engine (Black moves first)
@@ -119,6 +120,18 @@
     setTimeout(() => { t.classList.add("off"); setTimeout(() => t.remove(), 400); }, 6000);
   }
 
+  // ---------- local persistence (survives refresh; degrades silently without storage) ----------
+  const LS_KEY = "eg-game-v1";
+  const lsGet = () => { try { const o = JSON.parse(localStorage.getItem(LS_KEY) || "null"); return (o && o.v === 1) ? o : null; } catch (e) { return null; } };
+  const lsSet = o => { try { localStorage.setItem(LS_KEY, JSON.stringify(o)); } catch (e) {} };
+  const lsDel = () => { try { localStorage.removeItem(LS_KEY); } catch (e) {} };
+  function persist() {                                // call after every committed ply
+    if (!B || !S || !curKey) return;
+    if (TG.isTerminal(S, B)) { lsDel(); return; }     // finished games clear the slot
+    lsSet({ v: 1, frag: SHARE.serialize(curKey, B, moves), strength: $("#strength").value,
+            opponent: $("#opponent").value, color: humanColor === TG.BLACK ? "black" : "white" });
+  }
+
   // ---------- win-rate timeline (KaTrain-style) ----------
   // black's win prob each move; red dot where the side that just moved lost ≥12% (a blunder).
   function drawWRGraph(cur) {
@@ -206,7 +219,7 @@
     thinking(true); await sleep();
     const r = await searchMove(STRENGTH[$("#strength").value], 600);
     S = TG.play(S, r.move, B); moves.push(r.move); lastMove = (r.move === B.pass ? null : r.move);
-    thinking(false); draw(); recordWR(); pushPerf(r);
+    thinking(false); draw(); recordWR(); pushPerf(r); persist();
   }
 
   async function onHuman(node) {
@@ -218,7 +231,7 @@
     busy = true;
     try {
       hist.push({ s: S, last: lastMove });          // snapshot before this turn (for undo)
-      S = TG.play(S, node, B); moves.push(node); lastMove = node; draw(); recordWR();
+      S = TG.play(S, node, B); moves.push(node); lastMove = node; draw(); recordWR(); persist();
       if (!countedStart) {                            // count a real "game played" (first human move)
         countedStart = true; const k = $("#variant").value;
         gcEvent("game/" + k, "Game started: " + (BOARDS[k] ? BOARDS[k].label : k));
@@ -254,6 +267,7 @@
 
   function newGame(key) {
     B = TG.makeBoard(BOARDS[key]); S = TG.newGame(B);
+    curKey = key; lsDel();                            // a new game replaces the saved slot
     lastMove = null; prevMove = 0; hist = []; moves = []; wrHist = []; perfHist = []; lastPerf = null; countedStart = false;
     $("#perf").innerHTML = ""; draw(); recordWR();
     // if the human chose White, the engine (Black) opens the game
@@ -282,8 +296,9 @@
       const h = hist.pop(); S = h.s; lastMove = h.last; prevMove = S.moveNum; draw();
       moves.length = S.moveNum;                       // keep the share-link move list in sync
       wrHist.length = S.moveNum + 1; recordWR();      // trim the win-rate curve to match
+      persist();
     };
-    $("#pass").onclick = async () => { if (busy) return; busy = true; try { hist.push({ s: S, last: lastMove }); S = TG.play(S, B.pass, B); moves.push(B.pass); lastMove = null; draw(); recordWR(); if ($("#opponent").value === "engine") await engineReply(); } finally { busy = false; } };
+    $("#pass").onclick = async () => { if (busy) return; busy = true; try { hist.push({ s: S, last: lastMove }); S = TG.play(S, B.pass, B); moves.push(B.pass); lastMove = null; draw(); recordWR(); persist(); if ($("#opponent").value === "engine") await engineReply(); } finally { busy = false; } };
     $("#reset").onclick = () => { if (!busy) newGame(currentKey()); };
     famSel.onchange = () => { if (busy) return; fillVariants(+famSel.value); newGame(currentKey()); };
     varSel.onchange = () => { if (!busy) newGame(currentKey()); };
@@ -328,9 +343,23 @@
       setTimeout(() => { btn.textContent = old; }, 1600);
     };
 
-    // load a shared game from the URL fragment; any problem → friendly toast + fresh game.
-    // The engine never moves during or right after replay: the human is assigned the side to
-    // move, so play resumes only when they place the next stone.
+    // install a replayed game (shared link or resumed save) into the live UI.
+    // The engine never moves on its own right after install.
+    function installGame(parsed, color) {
+      const board = TG.makeBoard(BOARDS[parsed.key]);
+      const r = SHARE.replay(TG, board, parsed);       // throws on any corruption
+      selectKey(parsed.key);
+      B = board; S = r.state; hist = r.snaps; curKey = parsed.key;
+      moves = parsed.moves.map(m => m === SHARE.PASS ? B.pass : m);
+      const lastPly = moves.length ? moves[moves.length - 1] : null;
+      lastMove = (lastPly === null || lastPly === B.pass) ? null : lastPly;
+      prevMove = S.moveNum; wrHist = []; perfHist = []; lastPerf = null; countedStart = false;
+      humanColor = color != null ? color : S.toMove;
+      $("#playercolor").value = humanColor === TG.BLACK ? "black" : "white";
+      draw(); recordWR();
+    }
+
+    // load a shared game from the URL fragment; any problem → friendly toast + fresh game
     function loadShared() {
       let parsed = null;
       try { parsed = SHARE.parse(location.hash); }
@@ -338,17 +367,7 @@
       if (!parsed) return false;
       if (!BOARDS[parsed.key]) { toast(`This link uses a board this site doesn't have ("${parsed.key}") — starting fresh.`); return false; }
       try {
-        const board = TG.makeBoard(BOARDS[parsed.key]);
-        const r = SHARE.replay(TG, board, parsed);
-        selectKey(parsed.key);
-        B = board; S = r.state; hist = r.snaps;
-        moves = parsed.moves.map(m => m === SHARE.PASS ? B.pass : m);
-        const lastPly = moves.length ? moves[moves.length - 1] : null;
-        lastMove = (lastPly === null || lastPly === B.pass) ? null : lastPly;
-        prevMove = S.moveNum; wrHist = []; perfHist = []; lastPerf = null; countedStart = false;
-        humanColor = S.toMove;
-        $("#playercolor").value = humanColor === TG.BLACK ? "black" : "white";
-        draw(); recordWR();
+        installGame(parsed, null);                     // sharee plays the side to move
         toast(`Shared game loaded — move ${S.moveNum}, ${S.toMove === TG.BLACK ? "Black" : "White"} to play. That's you.`);
         return true;
       } catch (e) {
@@ -357,9 +376,43 @@
       }
     }
 
+    // non-blocking resume prompt for the previous (unfinished) game
+    function offerResume(saved) {
+      let parsed = null;
+      try { parsed = SHARE.parse("#" + saved.frag); } catch (e) { return; }
+      if (!parsed || !parsed.moves.length || !BOARDS[parsed.key]) return;   // empty/unknown: no prompt
+      const bar = document.createElement("div"); bar.id = "resume";
+      const label = (BOARDS[parsed.key].label || parsed.key);
+      bar.innerHTML = `<span>Resume your previous game? <b>${label}</b>, move ${parsed.moves.length}</span>`;
+      const yes = document.createElement("button"); yes.textContent = "Resume";
+      const no = document.createElement("button"); no.textContent = "Discard"; no.className = "ghost";
+      bar.append(yes, no); document.body.appendChild(bar);
+      no.onclick = () => bar.remove();
+      yes.onclick = () => {
+        bar.remove();
+        try {
+          installGame(parsed, saved.color === "white" ? TG.WHITE : TG.BLACK);
+          $("#strength").value = saved.strength || $("#strength").value;
+          $("#opponent").value = saved.opponent || $("#opponent").value;
+          persist();
+          // refresh could have landed mid-engine-think: it's still the engine's turn — offer
+          // a one-tap way to let it move (it never moves unprompted after a restore)
+          if ($("#opponent").value === "engine" && S.toMove !== humanColor && !TG.isTerminal(S, B)) {
+            const go = document.createElement("div"); go.id = "resume";
+            go.innerHTML = "<span>It's the engine's turn.</span>";
+            const btn = document.createElement("button"); btn.textContent = "▶ Let it move";
+            go.appendChild(btn); document.body.appendChild(go);
+            btn.onclick = async () => { go.remove(); if (!busy) { busy = true; try { await engineReply(); persist(); } finally { busy = false; } } };
+          }
+        } catch (e) { toast("Couldn't resume the saved game — it may be from an older version."); }
+      };
+    }
+
+    const savedGame = lsGet();                         // read BEFORE newGame clears the slot
     if (!loadShared()) {
       selectKey(BOARDS["penrose_medium"] ? "penrose_medium" : Object.keys(BOARDS)[0]);
       newGame(currentKey());
+      if (savedGame) offerResume(savedGame);
     }
     const sp = $("#splash");                       // loading splash: engine is ready, fade it out
     if (sp) { sp.classList.add("off"); setTimeout(() => sp.remove(), 450); }

@@ -104,5 +104,33 @@ expectError("illegal move (occupied)", "ILLEGAL_MOVE",
 if (SHARE.parse("#foo=bar") !== null) fail("non-game fragment should parse to null");
 else console.log("malformed ok: non-game fragment → ignored (null)");
 
+// ---- 3. persistence round-trip (the localStorage record schema, simulated reload) --------
+// Mirrors ui.js persist()/lsGet(): the game travels as JSON through a storage stub, then is
+// replayed on "reload". Catches JSON escaping/typing issues in the stored record.
+{
+  const storage = {};                                              // localStorage stand-in
+  const rng = mulberry32(0xBEEF);
+  let ok = 0;
+  for (const key of SUBSTRATES.slice(0, 3)) {
+    const board = TG.makeBoard(BOARDS[key]);
+    const { state, moves } = randomGame(board, rng, 60);
+    const rec = { v: 1, frag: SHARE.serialize(key, board, moves),
+                  strength: "Normal", opponent: "engine", color: "black" };
+    storage["eg-game-v1"] = JSON.stringify(rec);                   // persist()
+    const back = JSON.parse(storage["eg-game-v1"]);                // reload → lsGet()
+    if (back.v !== 1) { fail(`persistence: version lost for ${key}`); continue; }
+    const r = SHARE.replay(TG, TG.makeBoard(BOARDS[back.frag.split(".")[1]]),
+                           SHARE.parse("#" + back.frag));
+    if (sig(r.state) !== sig(state)) fail(`persistence round-trip mismatch on ${key}`);
+    else ok++;
+    if (back.strength !== "Normal" || back.color !== "black")
+      fail(`persistence: settings lost for ${key}`);
+  }
+  // unknown schema version must be discarded (ui.js lsGet returns null unless v === 1)
+  const unknown = JSON.parse(JSON.stringify({ v: 99, frag: "g=1.x.y.z" }));
+  if (!(unknown.v !== 1)) fail("persistence: unknown version not detectable");
+  console.log(`persistence: ${ok}/3 storage round-trips identical; unknown schema version detectable`);
+}
+
 console.log(fails ? `\nFAIL — ${fails} problem(s)` : "\nPASS — share serialization verified");
 process.exit(fails ? 1 : 0);
