@@ -42,6 +42,8 @@ BODY = """
   <button id="analyze" class="cta">⌖ Analyze position</button>
   <div class="row"><button id="pass">Pass</button><button id="undo">Undo</button><button id="reset">New game</button></div>
   <button id="share" style="margin-top:8px">🔗 Copy game link</button>
+  <div class="row"><button id="dlrec" title="Download the game as a JSON record">⬇ Record</button><button id="dlsgf" title="Download as SGF (square boards)">⬇ SGF</button><button id="ldrec" title="Load a saved record">⬆ Load</button></div>
+  <input type="file" id="recfile" accept=".json,application/json" style="display:none">
   <label class="chk"><input type="checkbox" id="auto"> Auto-analyze each move</label>
   <label class="chk"><input type="checkbox" id="snd" checked> Stone sound</label>
   <label class="chk"><input type="checkbox" id="light"> ☀ Light mode</label>
@@ -74,7 +76,7 @@ def main() -> int:
             return 1
     css = (WEB / "style.css").read_text()
     data, engine, ui = (WEB / "data.js").read_text(), (WEB / "engine.js").read_text(), (WEB / "ui.js").read_text()
-    share = (WEB / "share.js").read_text()
+    share = (WEB / "share.js").read_text() + "\n" + (WEB / "records.js").read_text()
     html = (
         "<!doctype html>\n<html lang=\"en\"><head>\n<meta charset=\"utf-8\">"
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"

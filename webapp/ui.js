@@ -194,6 +194,8 @@
     $("#winpct").textContent = "—"; $("#topmv").innerHTML = "";
     const hint = $("#hint");                       // first-move hint: gone once a stone is down
     if (hint && S.moveNum > 0) hint.remove();
+    const sg = $("#dlsgf");                        // SGF needs a coordinate grid: square only
+    if (sg) sg.style.display = (curKey && curKey.startsWith("square")) ? "" : "none";
     bind();
   }
   function bind() {
@@ -407,6 +409,40 @@
         } catch (e) { toast("Couldn't resume the saved game — it may be from an older version."); }
       };
     }
+
+    // ---- game records (download / load) ----
+    const download = (text, name, type) => {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name;
+      a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    };
+    const resultStr = () => {
+      if (!TG.isTerminal(S, B)) return null;
+      const sd = Math.round(TG.scoreDiff(S, B) * 10) / 10;
+      return (sd > 0 ? "B+" : "W+") + Math.abs(sd);
+    };
+    $("#dlrec").onclick = () => {
+      const rec = REC.buildRecord(curKey, B, moves,
+        { date: new Date().toISOString().slice(0, 10), result: resultStr() });
+      download(JSON.stringify(rec, null, 1), `euclidean-go-${curKey}-${rec.date}.json`, "application/json");
+    };
+    $("#dlsgf").onclick = () => {
+      download(REC.toSGF(curKey, B, moves, { result: resultStr() }),
+               `euclidean-go-${curKey}.sgf`, "application/x-go-sgf");
+    };
+    $("#ldrec").onclick = () => $("#recfile").click();
+    $("#recfile").onchange = async () => {
+      const f = $("#recfile").files[0]; $("#recfile").value = "";
+      if (!f) return;
+      try {
+        const rec = JSON.parse(await f.text());
+        const parsed = REC.toParsed(rec, TG, BOARDS);
+        installGame(parsed, null);
+        toast(`Record loaded — ${BOARDS[parsed.key].label || parsed.key}, move ${S.moveNum}.`);
+      } catch (e) {
+        toast(`Couldn't load that record (${e.message || "not valid JSON"}).`);
+      }
+    };
 
     const savedGame = lsGet();                         // read BEFORE newGame clears the slot
     if (!loadShared()) {
