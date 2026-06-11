@@ -108,7 +108,6 @@
       osc.connect(g).connect(actx.destination); osc.start(t); osc.stop(t + 0.14);
     } catch (e) {}
   }
-  const setWin = bw => { $("#winfill").style.height = Math.round(bw * 100) + "%"; };
   const thinking = on => $("#scan").classList.toggle("on", on);
   const sleep = () => new Promise(r => setTimeout(r, 0));
 
@@ -126,10 +125,12 @@
       if (moverDelta < -0.12) dots += `<circle cx="${xs(i).toFixed(1)}" cy="${ys(w).toFixed(1)}" r="3.4" fill="#e0796b" stroke="#1a0e0c" stroke-width="0.8"/>`;
     }
     const mid = ys(0.5).toFixed(1), cx = xs(cur).toFixed(1), T = theme();
+    const tip = wrHist[cur] == null ? "" :
+      `<circle cx="${cx}" cy="${ys(wrHist[cur]).toFixed(1)}" r="3.2" fill="${T.gPath}"/>`;
     el.innerHTML = `<svg width="100%" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="border-radius:8px;background:${T.gBg};border:1px solid ${T.gLine}">
       <line x1="${pad}" y1="${mid}" x2="${W - pad}" y2="${mid}" stroke="${T.gLine}" stroke-dasharray="3 3"/>
       <path d="${path}" fill="none" stroke="${T.gPath}" stroke-width="2" vector-effect="non-scaling-stroke"/>
-      <line x1="${cx}" y1="${pad}" x2="${cx}" y2="${H - pad}" stroke="${T.line}" opacity="0.25"/>${dots}</svg>`;
+      <line x1="${cx}" y1="${pad}" x2="${cx}" y2="${H - pad}" stroke="${T.line}" opacity="0.25"/>${dots}${tip}</svg>`;
   }
   // one cheap net forward → black win-rate for the current position; record it and redraw the curve
   function recordWR() {
@@ -137,7 +138,7 @@
     const out = TG.forward(net, TG.encode(S, B).x, B.n, B.adj);
     const bw = S.toMove === TG.BLACK ? 0.5 * (out.value + 1) : 0.5 * (1 - out.value);
     wrHist[S.moveNum] = bw;
-    setWin(bw); $("#winpct").textContent = Math.round(bw * 100) + "%";
+    $("#winpct").textContent = Math.round(bw * 100) + "%";
     drawWRGraph(S.moveNum);
   }
 
@@ -170,6 +171,8 @@
     else $("#msg").textContent = "";
     if (S.moveNum > prevMove) clack(); prevMove = S.moveNum;
     $("#winpct").textContent = "—"; $("#topmv").innerHTML = "";
+    const hint = $("#hint");                       // first-move hint: gone once a stone is down
+    if (hint && S.moveNum > 0) hint.remove();
     bind();
   }
   function bind() {
@@ -236,7 +239,7 @@
       { moves: moves.slice(0, 8), ownership: out.ownSigned, best }); bind();
     const bw = S.toMove === TG.BLACK ? 0.5 * (out.value + 1) : 0.5 * (1 - out.value);
     const lead = (S.toMove === TG.BLACK ? 1 : -1) * out.score * B.n;
-    setWin(bw); $("#winpct").textContent = Math.round(bw * 100) + "%";
+    $("#winpct").textContent = Math.round(bw * 100) + "%";
     $("#score").textContent = (lead >= 0 ? "B+" : "W+") + Math.abs(lead).toFixed(1);
     $("#topmv").innerHTML = top.slice(0, 5).map((m, i) => `<span class="k">${i + 1}</span> ${Math.round(m.wr * 100)}% &middot; ${m.vis}v`).join("<br>");
   }
@@ -244,7 +247,7 @@
   function newGame(key) {
     B = TG.makeBoard(BOARDS[key]); S = TG.newGame(B);
     lastMove = null; prevMove = 0; hist = []; wrHist = []; perfHist = []; lastPerf = null; countedStart = false;
-    setWin(0.5); $("#perf").innerHTML = ""; draw(); recordWR();
+    $("#perf").innerHTML = ""; draw(); recordWR();
     // if the human chose White, the engine (Black) opens the game
     if ($("#opponent").value === "engine" && humanColor === TG.WHITE) {
       busy = true;
@@ -300,6 +303,8 @@
     };
     selectKey(BOARDS["penrose_medium"] ? "penrose_medium" : Object.keys(BOARDS)[0]);
     newGame(currentKey());
+    const sp = $("#splash");                       // loading splash: engine is ready, fade it out
+    if (sp) { sp.classList.add("off"); setTimeout(() => sp.remove(), 450); }
   }
   if (document.readyState !== "loading") init(); else document.addEventListener("DOMContentLoaded", init);
 })();
