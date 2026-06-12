@@ -16,6 +16,10 @@
   let stoneMeshes = [], hitMeshes = [], markerMeshes = [], lastRing = null, hoverIdx = -1;
   let yaw = 0.7, pitch = 0.45, dist = 4.2, panY = 0;
   let P3 = null;                                 // centered [N,3] positions (lattice units → scene)
+  // win-rate HUD: drawn INTO the WebGL canvas (a CanvasTexture on an orthographic overlay),
+  // so screenshots and canvas recordings capture the engine's live evaluation
+  let hudScene, hudCam, hudTex, hudCanvas, hudPlane, wrHist = [];
+  const HUD_W = 460, HUD_H = 132;
 
   const COL = { bg: 0x0b0d13, line: 0x39414f, marker: 0x4a5266, markerLegal: 0x5a6478,
                 black: 0x14171d, white: 0xe8ebf2, accent: 0x00ffc2 };
@@ -36,10 +40,28 @@
     const d2 = new T.DirectionalLight(0x88aaff, 0.25); d2.position.set(-4, -2, -3); scene.add(d2);
     group = new T.Group();
     scene.add(group);
+    // HUD overlay pass (pixel-space orthographic scene sharing the same canvas)
+    hudCanvas = document.createElement("canvas");
+    hudCanvas.width = HUD_W * 2; hudCanvas.height = HUD_H * 2;       // 2× for crispness
+    hudTex = new T.CanvasTexture(hudCanvas);
+    hudScene = new T.Scene();
+    hudCam = new T.OrthographicCamera(0, el.clientWidth, el.clientHeight, 0, -1, 1);
+    hudPlane = new T.Mesh(new T.PlaneGeometry(HUD_W, HUD_H),
+                          new T.MeshBasicMaterial({ map: hudTex, transparent: true }));
+    hudScene.add(hudPlane);
+    const placeHUD = () => {
+      hudCam.right = el.clientWidth; hudCam.top = el.clientHeight;
+      hudCam.updateProjectionMatrix();
+      hudPlane.position.set(HUD_W / 2 + 24, HUD_H / 2 + 24, 0);   // bottom-left (info panel
+                                                                  //  owns bottom-right)
+    };
+    placeHUD();
+    renderer.autoClear = false;
     window.addEventListener("resize", () => {
       camera.aspect = el.clientWidth / el.clientHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(el.clientWidth, el.clientHeight);
+      placeHUD();
     });
     requestAnimationFrame(tick);
   }
@@ -50,8 +72,45 @@
                         dist * Math.sin(cp) + panY,
                         dist * Math.cos(cp) * Math.cos(yaw));
     camera.lookAt(0, panY, 0);
+    renderer.clear();
     renderer.render(scene, camera);
+    renderer.clearDepth();
+    renderer.render(hudScene, hudCam);
     requestAnimationFrame(tick);
+  }
+
+  // KaTrain-style win-rate timeline, drawn at 2× into the HUD texture
+  function drawHUD() {
+    const c = hudCanvas.getContext("2d");
+    const W = hudCanvas.width, H = hudCanvas.height, s = 2;
+    c.clearRect(0, 0, W, H);
+    c.fillStyle = "rgba(13,16,23,0.88)"; c.strokeStyle = "#2a313c"; c.lineWidth = 2;
+    const rr = (x, y, w, h, r) => { c.beginPath(); c.roundRect(x, y, w, h, r); };
+    rr(1, 1, W - 2, H - 2, 16); c.fill(); c.stroke();
+    c.fillStyle = "#828c9c"; c.font = `600 ${11 * s}px -apple-system, sans-serif`;
+    c.fillText("W I N   R A T E   ·   B L A C K", 18 * s, 22 * s);
+    const gx = 18 * s, gy = 30 * s, gw = W - 116 * s, gh = H - 44 * s;
+    c.strokeStyle = "#39414f"; c.setLineDash([5, 5]); c.beginPath();
+    c.moveTo(gx, gy + gh / 2); c.lineTo(gx + gw, gy + gh / 2); c.stroke(); c.setLineDash([]);
+    const pts = wrHist.map((v, i) => v == null ? null : [
+      gx + (wrHist.length < 2 ? 0 : (i / (wrHist.length - 1)) * gw),
+      gy + (1 - v) * gh]).filter(Boolean);
+    if (pts.length >= 2) {
+      c.strokeStyle = "#00ffc2"; c.lineWidth = 2.5 * s; c.lineJoin = "round"; c.beginPath();
+      pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.stroke();
+    }
+    if (pts.length) {
+      const last = pts[pts.length - 1];
+      c.fillStyle = "#00ffc2"; c.beginPath(); c.arc(last[0], last[1], 4 * s, 0, 7); c.fill();
+    }
+    const bw = wrHist.length ? wrHist[wrHist.length - 1] : null;
+    if (bw != null) {
+      c.fillStyle = "#00ffc2"; c.font = `700 ${30 * s}px ui-monospace, Menlo, monospace`;
+      c.fillText(Math.round(bw * 100) + "%", W - 92 * s, H / 2 + 4 * s);
+      c.fillStyle = "#828c9c"; c.font = `${10 * s}px -apple-system, sans-serif`;
+      c.fillText("net eval, live", W - 92 * s, H / 2 + 20 * s);
+    }
+    hudTex.needsUpdate = true;
   }
 
   function buildBoardMeshes(rec) {
@@ -129,6 +188,13 @@
 
     const term = TG.isTerminal(S, B);
     const sd = Math.round(TG.scoreDiff(S, B) * 10) / 10;
+    // live evaluation for the HUD: one cheap net forward per position
+    if (wrHist.length !== S.moveNum + 1 || wrHist[S.moveNum] == null) {
+      wrHist.length = S.moveNum + 1;                       // handles undo trims too
+      const out = TG.evaluate(net, S, B);
+      wrHist[S.moveNum] = S.toMove === TG.BLACK ? 0.5 * (out.value + 1) : 0.5 * (1 - out.value);
+      drawHUD();
+    }
     $("#turn3").textContent = (term || resigned) ? "game over"
       : (S.toMove === TG.BLACK ? "Black" : "White") + " to move";
     $("#move3").textContent = "move " + S.moveNum + (S.passCount ? " · " + S.passCount + "p" : "");
@@ -238,7 +304,7 @@
     const rec = BOARDS[key];
     B = TG.makeBoard(rec);
     B.coords3 = rec.coords3d;
-    S = TG.newGame(B); moves = []; hist = []; lastMove = null; resigned = false;
+    S = TG.newGame(B); moves = []; hist = []; lastMove = null; resigned = false; wrHist = [];
     const eb = $("#endbanner"); if (eb) eb.remove();
     buildBoardMeshes({ n: B.n, coords3: rec.coords3d, edgesI: B.edges });
     syncBoard();
@@ -329,6 +395,20 @@
     buildScene();
     wireInput();
     newGame("diamond_c2");
+    // minimal demo/debug hooks (drive the camera + place stones programmatically; used by
+    // the demo recorder so motion is continuous instead of freezing during synthetic input)
+    window.EG3D = {
+      orbit(dy, dp) { yaw += dy; pitch += dp; },
+      zoom(f) { dist = Math.max(2.2, Math.min(9, dist * f)); },
+      place(node) { return onPick(node); },
+      legal() {
+        const l = TG.legalMoves(S, B), out = [];
+        for (let i = 0; i < B.n; i++) if (l[i] && S.colors[i] === 0) out.push(i);
+        return out;
+      },
+      pos(i) { return [P3[3 * i], P3[3 * i + 1], P3[3 * i + 2]]; },
+      state() { return { move: S ? S.moveNum : 0, busy }; },
+    };
     const sp = $("#splash"); if (sp) { sp.classList.add("off"); setTimeout(() => sp.remove(), 450); }
   }
   if (document.readyState !== "loading") init(); else document.addEventListener("DOMContentLoaded", init);
