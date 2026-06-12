@@ -15,11 +15,27 @@ REPO = Path(__file__).resolve().parent.parent
 WEB = REPO / "webapp"
 
 CSS3D = """
+html, body { overflow:hidden; height:100%; }
 #stage3d { position:fixed; inset:0; }
-#stage3d canvas { display:block; }
+#stage3d canvas { display:block; touch-action:none; }   /* rotate ≠ scroll on touch */
 #thinking { position:fixed; top:18px; right:22px; z-index:6; color:var(--accent); font-size:12px;
   letter-spacing:1.2px; text-transform:uppercase; opacity:0; transition:opacity .25s; }
 .info3 { bottom:24px; right:24px; top:auto; left:auto; position:fixed; }
+
+/* mobile: this is a fullscreen-canvas page — override the 2D app's stacked-panel rules.
+   Compact pinned panels, board on top, everything reachable with a thumb. */
+@media (max-width: 860px) {
+  html, body { overflow:hidden; height:100%; }
+  .panel.ctrl { position:fixed; top:10px; left:10px; right:10px; width:auto; margin:0;
+    padding:10px 12px; max-height:44vh; overflow-y:auto; }
+  .panel.ctrl .brand { margin-bottom:8px; }
+  .panel.ctrl label { margin:8px 0 4px; }
+  .panel.ctrl .perfnote, .panel.ctrl .ghlink { display:none; }   /* essentials only */
+  .panel.info3 { position:fixed; top:auto; bottom:10px; left:10px; right:10px; width:auto;
+    margin:0; padding:10px 14px; }
+  .panel.info3 .bignum { display:none; }
+  #hint { bottom:84px; }
+}
 """
 
 BODY = """

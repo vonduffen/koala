@@ -52,9 +52,13 @@
     const placeHUD = () => {
       hudCam.right = el.clientWidth; hudCam.top = el.clientHeight;
       hudCam.updateProjectionMatrix();
-      hudPlane.position.set(HUD_W / 2 + 24, HUD_H / 2 + 24, 0);   // bottom-left (info panel
-                                                                  //  owns bottom-right)
-    };
+      // scale down on narrow screens (phones are narrower than the HUD's native 460px)
+      const k = Math.min(1, (el.clientWidth - 24) / HUD_W);
+      hudPlane.scale.setScalar(k);
+      const isMobile = el.clientWidth <= 860;
+      hudPlane.position.set((HUD_W * k) / 2 + 12,
+                            (HUD_H * k) / 2 + (isMobile ? 78 : 24), 0);  // above the mobile
+    };                                                                   // bottom info bar
     placeHUD();
     renderer.autoClear = false;
     window.addEventListener("resize", () => {
@@ -143,7 +147,8 @@
     const mGeo = new T.SphereGeometry(0.020, 10, 8);
     const sGeo = new T.SphereGeometry(0.105, 24, 18);
     const rGeo = new T.SphereGeometry(0.109, 24, 18);     // black-stone rim shell (the 2D
-    const hGeo = new T.SphereGeometry(0.16, 8, 6);        //  contrast lesson, in 3D)
+    const touch = "ontouchstart" in window;               //  contrast lesson, in 3D)
+    const hGeo = new T.SphereGeometry(touch ? 0.23 : 0.16, 8, 6);   // thumb-sized hit targets
     const blackMat = new T.MeshStandardMaterial({ color: 0x1b2029, roughness: 0.32, metalness: 0.35 });
     const whiteMat = new T.MeshStandardMaterial({ color: COL.white, roughness: 0.30, metalness: 0.05 });
     const rimMat = new T.MeshBasicMaterial({ color: 0x78839b, wireframe: true,
@@ -195,6 +200,8 @@
       wrHist[S.moveNum] = S.toMove === TG.BLACK ? 0.5 * (out.value + 1) : 0.5 * (1 - out.value);
       drawHUD();
     }
+    const hint = $("#hint");                               // gone once the first stone lands
+    if (hint && S.moveNum > 0) hint.remove();
     $("#turn3").textContent = (term || resigned) ? "game over"
       : (S.toMove === TG.BLACK ? "Black" : "White") + " to move";
     $("#move3").textContent = "move " + S.moveNum + (S.passCount ? " · " + S.passCount + "p" : "");
@@ -324,7 +331,9 @@
       down = { x: e.clientX, y: e.clientY };
     });
     window.addEventListener("pointerup", e => {
-      if (down && moved < 6) pick(e);                      // a click, not a drag
+      // fingers wobble: a "tap" moves far more than a mouse click does
+      const tapSlop = e.pointerType === "touch" ? 16 : 6;
+      if (down && moved < tapSlop) pick(e);
       down = null;
     });
     el.addEventListener("wheel", e => {
