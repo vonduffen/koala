@@ -7,13 +7,22 @@
 triangular, the Archimedean tilings, even an aperiodic Penrose rhombus tiling — with a single
 neural network.**
 
-## ▶️ [**Play it now in your browser →**](https://vonduffen.github.io/euclidean-go/)
+## ▶️ [**Play it now in your browser →**](https://vonduffen.github.io/euclidean-go/) · 🧊 [**or in 3D →**](https://vonduffen.github.io/euclidean-go/3d.html)
 
 No install, no sign-up. Works on desktop and mobile, runs entirely client-side (offline after
 the first load), with the trained neural engine as your opponent on every tiling. *(It's a
 ~4.5 MB page, so give it a moment on the first load.)*
 
 [![Euclidean Go — a live champion self-play game on a Penrose (aperiodic, 5-fold) tiling, with the real-time win-rate graph and engine-performance analyzer](docs/demo-v2.gif)](https://vonduffen.github.io/euclidean-go/)
+
+**🧊 New: [Go in three dimensions](https://vonduffen.github.io/euclidean-go/3d.html).**
+Naive 3D Go on a cubic lattice is degenerate — six neighbours per point gives stones too many
+liberties, and surrounding anything costs a whole shell of stones. The **diamond-cubic
+lattice** (carbon's crystal structure) fixes exactly that: it is **4-regular**, so every point
+has the same liberty budget as 2D square Go, on a genuinely three-dimensional board. Rotate it,
+zoom it, click a glowing point to play — against the same engine, whose planar-trained network
+plays 3D **zero-shot** (it beat a random-weights baseline 24–0 in our first test; nobody,
+human or machine, has real intuition here yet).
 
 Go is really a *graph game*: stones live on the intersections of a board, connect along lines,
 and are captured when a group runs out of liberties. Nothing in the rules cares whether those

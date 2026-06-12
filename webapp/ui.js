@@ -417,7 +417,8 @@
     const FAMS = (typeof FAMILIES !== "undefined" && FAMILIES.length)
       ? FAMILIES : [{ family: "Boards", items: Object.keys(BOARDS).map(k => [k, BOARDS[k].label || k]) }];
     const famSel = $("#family"), varSel = $("#variant");
-    famSel.innerHTML = FAMS.map((g, i) => `<option value="${i}">${g.family}</option>`).join("");
+    famSel.innerHTML = FAMS.map((g, i) => `<option value="${i}">${g.family}</option>`).join("")
+      + `<option value="__3d">Diamond cubic (3D) →</option>`;   // lives on its own page
     const fillVariants = (fi) => { varSel.innerHTML = FAMS[fi].items.map(([k, sub]) => `<option value="${k}">${sub}</option>`).join(""); };
     const currentKey = () => varSel.value;
     const selectKey = (key) => {                          // point both dropdowns at a board key
@@ -434,7 +435,11 @@
     };
     $("#pass").onclick = async () => { if (busy || resigned !== null) return; busy = true; try { hist.push({ s: S, last: lastMove }); S = TG.play(S, B.pass, B); moves.push(B.pass); lastMove = null; draw(); recordWR(); persist(); if ($("#opponent").value === "engine") await engineReply(); } finally { busy = false; } };
     $("#reset").onclick = () => { if (!busy) newGame(currentKey()); };
-    famSel.onchange = () => { if (busy) return; fillVariants(+famSel.value); newGame(currentKey()); };
+    famSel.onchange = () => {
+      if (famSel.value === "__3d") { location.href = "./3d.html"; return; }
+      if (busy) { selectKey(currentKey()); return; }
+      fillVariants(+famSel.value); newGame(currentKey());
+    };
     varSel.onchange = () => { if (!busy) newGame(currentKey()); };
     $("#random").onclick = () => {                         // random board for a fresh game
       if (busy) return;
