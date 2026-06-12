@@ -16,13 +16,18 @@ the first load), with the trained neural engine as your opponent on every tiling
 [![Euclidean Go — a live champion self-play game on a Penrose (aperiodic, 5-fold) tiling, with the real-time win-rate graph and engine-performance analyzer](docs/demo-v2.gif)](https://vonduffen.github.io/euclidean-go/)
 
 **🧊 New: [Go in three dimensions](https://vonduffen.github.io/euclidean-go/3d.html).**
-Naive 3D Go on a cubic lattice is degenerate — six neighbours per point gives stones too many
-liberties, and surrounding anything costs a whole shell of stones. The **diamond-cubic
-lattice** (carbon's crystal structure) fixes exactly that: it is **4-regular**, so every point
-has the same liberty budget as 2D square Go, on a genuinely three-dimensional board. Rotate it,
-zoom it, click a glowing point to play — against the same engine, whose planar-trained network
-plays 3D **zero-shot** (it beat a random-weights baseline 24–0 in our first test; nobody,
-human or machine, has real intuition here yet).
+3D Go itself is not new — cubic-lattice implementations have existed for decades (e.g.
+[lene/go-3](https://github.com/lene/go-3)), and generalized/topological Go has been described
+in the literature. But the cubic lattice fights the game: six neighbours per point means six
+liberties per stone, and surrounding anything costs a whole shell of stones — capture
+economics drift far from Go as we know it. We play on the **diamond-cubic lattice** (carbon's
+crystal structure) instead: it is **4-regular**, so every point has the same liberty budget as
+2D square Go, on a genuinely three-dimensional board. Rotate it, zoom it, click a glowing
+point to play. What we believe *is* new here — happy to be corrected — is the engine:
+**not the first 3D Go, but to our knowledge the first graph-native neural Go engine that
+transfers zero-shot from planar tilings to diamond-cubic 3D** — the same rules engine, MCTS,
+and trained GNN, no 3D training at all (it beat a random-weights baseline 24–0 in our first
+test; treat its 3D play as a curiosity, not a master).
 
 Go is really a *graph game*: stones live on the intersections of a board, connect along lines,
 and are captured when a group runs out of liberties. Nothing in the rules cares whether those
