@@ -12,6 +12,8 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
+import sys as _sys; _sys.path.insert(0, str(Path(__file__).resolve().parent))
+from brand_assets import LOGO_SVG, favicon_link  # noqa: E402
 WEB = REPO / "webapp"
 
 CSS3D = """
@@ -39,13 +41,13 @@ html, body { overflow:hidden; height:100%; }
 """
 
 BODY = """
-<div id="splash"><div class="splash-logo"></div><div class="splash-name">EUCLIDEAN·GO — 3D</div>
+<div id="splash"><div class="splash-logo"></div><div class="splash-name">KOALA — 3D</div>
   <div class="splash-sub">loading the neural engine…</div></div>
 <div id="stage3d"></div>
 <div id="thinking">thinking…</div>
 <div id="hint">drag to rotate · scroll to zoom · click a glowing point to play</div>
 <div class="panel ctrl">
-  <div class="brand"><div class="logo"></div><div><h1>EUCLIDEAN·GO <span style="color:var(--accent)">3D</span></h1><p>diamond-cubic lattice</p></div></div>
+  <div class="brand"><div class="logo">__LOGO_SVG__</div><div><h1>KOALA <span style="color:var(--accent)">3D</span></h1><p>diamond-cubic lattice</p></div></div>
   <label>Board</label>
   <select id="board3"></select>
   <label>Opponent</label>
@@ -55,7 +57,7 @@ BODY = """
   <div class="row"><button id="pass3">Pass</button><button id="undo3">Undo</button><button id="reset3">New game</button></div>
   <div class="perfnote" style="margin-top:14px">Every point has exactly <b>4 neighbours</b> — square-Go liberties, in three dimensions. The engine never trained on 3D: its planar knowledge is playing <b>zero-shot</b>.</div>
   <a class="ghlink" href="./index.html">← flat boards</a>
-  <a class="ghlink" style="margin-left:12px" href="https://github.com/vonduffen/euclidean-go" target="_blank" rel="noopener">GitHub</a>
+  <a class="ghlink" style="margin-left:12px" href="https://github.com/vonduffen/koala" target="_blank" rel="noopener">GitHub</a>
 </div>
 <div class="panel info info3">
   <div class="turnrow"><span class="dot" id="turndot3"></span><span id="turn3">—</span><span class="spacer"></span><span class="muted" id="move3">move 0</span></div>
@@ -86,8 +88,9 @@ def main() -> int:
     html = (
         "<!doctype html>\n<html lang=\"en\"><head>\n<meta charset=\"utf-8\">"
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
-        "<title>Euclidean Go — 3D</title>\n<style>\n" + css + "\n</style>\n</head>\n<body>\n"
-        + BODY +
+        + favicon_link() +
+        "<title>Koala — Go in 3D</title>\n<style>\n" + css + "\n</style>\n</head>\n<body>\n"
+        + BODY.replace("__LOGO_SVG__", LOGO_SVG) +
         ("\n<script type=\"text/plain\" id=\"wasm-src\">\n" + worker_src + "\n</script>\n" if worker_src else "")
         + "\n<script>\n" + three + "\n</script>\n"
         "<script>\n" + data + "\n</script>\n"

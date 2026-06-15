@@ -1,5 +1,5 @@
 [project]
-name = "euclidean-go"
+name = "koala"
 version = "0.1.0"
 description = "A geometry-blind AlphaZero-style Go engine that plays on any Euclidean tiling"
 readme = "README.md"

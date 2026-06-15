@@ -44,7 +44,7 @@ BODY = """
 <div class="stage"><div class="glow"></div><div id="boardwrap"><div id="board"></div><div id="scan"></div></div></div>
 <div class="winrail" title="Black win probability"><div class="winrail-fill" id="winfill"></div></div>
 <div class="panel ctrl">
-  <div class="brand"><div class="logo"></div><div><h1>EUCLIDEAN·GO</h1><p>native C++ engine</p></div></div>
+  <div class="brand"><div class="logo"></div><div><h1>KOALA</h1><p>native C++ engine</p></div></div>
   <label>Substrate</label>
   <select id="family"></select>
   <select id="variant" style="margin-top:6px"></select>
@@ -93,7 +93,7 @@ def main() -> int:
     ui = (REPO / "webapp" / "native_ui.js").read_text()
     import json
     html = ("<!doctype html>\n<html lang=\"en\"><head>\n<meta charset=\"utf-8\">"
-            "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Euclidean Go</title>\n"
+            "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Koala</title>\n"
             "<style>\n" + css + "\n</style></head>\n<body>\n" + BODY +
             "\n<script>const BOARDSGEOM = " + json.dumps(geom) + ";\n"
             "const FAMILIES = " + json.dumps(families_struct()) + ";</script>\n"
@@ -105,11 +105,11 @@ def main() -> int:
     subprocess.run(["clang++", "-O3", "-std=c++17", "-DACCELERATE_NEW_LAPACK", "-framework", "Accelerate",
                     str(REPO / "cpp" / "server.cpp"), "-o", str(dist / "TilingGo")], check=True)
 
-    launcher = dist / "Play Euclidean Go.command"
+    launcher = dist / "Play Koala.command"
     launcher.write_text(
         '#!/bin/bash\n'
         'D="$(cd "$(dirname "$0")" && pwd)"\n'
-        'echo "Starting Euclidean Go (native C++ engine)…  close this window to stop."\n'
+        'echo "Starting Koala (native C++ engine)…  close this window to stop."\n'
         '"$D/TilingGo" "$D" 8799 220 &\n'
         'SRV=$!\n'
         'sleep 1; open "http://127.0.0.1:8799/"\n'

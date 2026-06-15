@@ -1,6 +1,6 @@
-# Euclidean Go game-record format ("graph-SGF") — v1
+# Koala game-record format ("graph-SGF") — v1
 
-SGF presumes a coordinate grid; most Euclidean Go boards have none. A game here is a sequence
+SGF presumes a coordinate grid; most Koala boards have none. A game here is a sequence
 of **node indices** into a named board graph, so the record names the board, fingerprints its
 graph, and lists the moves. One JSON schema is read and written by both implementations:
 

@@ -1,21 +1,21 @@
-# Euclidean Go
+# Koala
 
-[![CI](https://github.com/vonduffen/euclidean-go/actions/workflows/ci.yml/badge.svg)](https://github.com/vonduffen/euclidean-go/actions/workflows/ci.yml)
+[![CI](https://github.com/vonduffen/koala/actions/workflows/ci.yml/badge.svg)](https://github.com/vonduffen/koala/actions/workflows/ci.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
 **A geometry-blind Go engine that plays on *any* Euclidean tiling — square, hexagonal,
 triangular, the Archimedean tilings, even an aperiodic Penrose rhombus tiling — with a single
 neural network.**
 
-## ▶️ [**Play it now in your browser →**](https://vonduffen.github.io/euclidean-go/) · 🧊 [**or in 3D →**](https://vonduffen.github.io/euclidean-go/3d.html)
+## ▶️ [**Play it now in your browser →**](https://vonduffen.github.io/koala/) · 🧊 [**or in 3D →**](https://vonduffen.github.io/koala/3d.html)
 
 No install, no sign-up. Works on desktop and mobile, runs entirely client-side (offline after
 the first load), with the trained neural engine as your opponent on every tiling. *(It's a
 ~4.5 MB page, so give it a moment on the first load.)*
 
-[![Euclidean Go — a live champion self-play game on a Penrose (aperiodic, 5-fold) tiling, with the real-time win-rate graph and engine-performance analyzer](docs/demo-v2.gif)](https://vonduffen.github.io/euclidean-go/)
+[![Koala — a live champion self-play game on a Penrose (aperiodic, 5-fold) tiling, with the real-time win-rate graph and engine-performance analyzer](docs/demo-v2.gif)](https://vonduffen.github.io/koala/)
 
-**🧊 New: [Go in three dimensions](https://vonduffen.github.io/euclidean-go/3d.html).**
+**🧊 New: [Go in three dimensions](https://vonduffen.github.io/koala/3d.html).**
 3D Go itself is not new — cubic-lattice implementations have existed for decades (e.g.
 [lene/go-3](https://github.com/lene/go-3)), and generalized/topological Go has been described
 in the literature. But the cubic lattice fights the game: six neighbours per point means six
@@ -31,7 +31,7 @@ test; treat its 3D play as a curiosity, not a master).
 
 Go is really a *graph game*: stones live on the intersections of a board, connect along lines,
 and are captured when a group runs out of liberties. Nothing in the rules cares whether those
-intersections form a square grid. Euclidean Go takes that idea literally — the rules engine, the
+intersections form a square grid. Koala takes that idea literally — the rules engine, the
 Monte-Carlo Tree Search, and the neural network **never see geometry**. They operate on a
 `BoardGraph` (nodes + edges). Geometry exists only in two places: the *tiling compiler* that
 turns a tiling into a graph, and the *renderer* that draws it.
@@ -115,7 +115,7 @@ interesting — please open an issue.
 ## Why "any tiling" is the point
 
 Most Go engines are square-grid-specific in their bones (fixed-size convolutions, 19×19 input
-planes). Because Euclidean Go is graph-native, the *same weights* evaluate a hexagonal board, a
+planes). Because Koala is graph-native, the *same weights* evaluate a hexagonal board, a
 snub-square tiling, or an aperiodic Penrose patch. The board is data, not architecture. That makes
 it a small testbed for a real question: **does a model learn substrate-invariant concepts, or does
 it memorize a grid?**
@@ -158,13 +158,13 @@ within this project (see [NOTICE](NOTICE)).
 
 ## Citation
 
-If you use Euclidean Go in academic work, please cite it (a `CITATION.cff` will follow). For now:
+If you use Koala in academic work, please cite it (a `CITATION.cff` will follow). For now:
 
 ```
 @software{euclidean_go,
-  title  = {Euclidean Go: a geometry-blind Go engine for arbitrary Euclidean tilings},
+  title  = {Koala: a geometry-blind Go engine for arbitrary Euclidean tilings},
   author = {Dufour-Richard, Alexandre},
   year   = {2026},
-  url    = {https://github.com/vonduffen/euclidean-go}
+  url    = {https://github.com/vonduffen/koala}
 }
 ```

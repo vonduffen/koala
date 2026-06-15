@@ -118,7 +118,7 @@ def compose(board_png, bwr_hist, perf, spark_hist, cur, label, tmp):
     d = ImageDraw.Draw(img)
 
     # brand
-    text(d, (PANEL_X, 54), "EUCLIDEAN·GO", font(30, True), INK)
+    text(d, (PANEL_X, 54), "KOALA", font(30, True), INK)
     text(d, (PANEL_X, 92), "Go on every Euclidean tiling", font(14), MUTED)
 
     y = 142

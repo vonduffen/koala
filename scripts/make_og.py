@@ -74,7 +74,7 @@ def main() -> int:
     x = 710
     # logo chip
     d.rounded_rectangle([x, 158, x + 44, 202], radius=13, fill=(0, 224, 188))
-    d.text((x + 60, 162), "EUCLIDEAN·GO", font=font(40, True), fill=INK)
+    d.text((x + 60, 162), "KOALA", font=font(40, True), fill=INK)
     d.text((x, 232), "Go on every tiling.", font=font(30, True), fill=ACCENT)
     for i, line in enumerate(["One geometry-blind neural net plays",
                               "Penrose, hexagonal, snub and 13 tiling",
@@ -85,7 +85,7 @@ def main() -> int:
     d.polygon([(x + 38, 436), (x + 38, 456), (x + 54, 446)], fill=(4, 18, 14))   # play triangle
     d.text((x + 160, 446), "Play it now — free", font=font(20, True), fill=(4, 18, 14),
            anchor="mm")
-    d.text((x, 496), "vonduffen.github.io/euclidean-go", font=font(16), fill=MUTED)
+    d.text((x, 496), "vonduffen.github.io/koala", font=font(16), fill=MUTED)
 
     out = REPO / "docs" / "og.png"
     img.save(out, optimize=True)

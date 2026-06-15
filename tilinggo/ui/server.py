@@ -371,7 +371,7 @@ def serve(host: str = "127.0.0.1", port: int = 8770) -> ThreadingHTTPServer:
 PAGE = """<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Euclidean Go — play</title>
+<title>Koala — play</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
   :root {
@@ -483,7 +483,7 @@ PAGE = """<!doctype html>
 
 <div class="panel ctrl">
   <div class="brand"><div class="logo"></div>
-    <div><h1>EUCLIDEAN·GO</h1><p>geometry-blind engine</p></div></div>
+    <div><h1>KOALA</h1><p>geometry-blind engine</p></div></div>
   <label>Substrate</label>
   <select id="family"></select>
   <select id="variant" style="margin-top:6px"></select>

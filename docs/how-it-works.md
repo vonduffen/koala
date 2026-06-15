@@ -1,4 +1,4 @@
-# How Euclidean Go works
+# How Koala works
 
 *One neural network that plays Go on a square board, a hexagonal board, a Penrose tiling, and
 boards it has never seen — with the same weights. This page explains how, for a curious
@@ -79,7 +79,7 @@ better luggage.
 
 ## Try it
 
-**[Play in your browser →](https://vonduffen.github.io/euclidean-go/)** — or read the
+**[Play in your browser →](https://vonduffen.github.io/koala/)** — or read the
 [game-record format](game-record-format.md), build the
 [native macOS app](../README.md#quickstart), or train your own net from the
 [README](../README.md).

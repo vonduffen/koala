@@ -1,6 +1,6 @@
 """Game records — the JSON "graph-SGF" shared with the webapp (docs/game-record-format.md).
 
-SGF assumes a coordinate grid, which only exists on the square board; Euclidean Go games are
+SGF assumes a coordinate grid, which only exists on the square board; Koala games are
 sequences of *node indices* into a named board graph. A record stores the board key, a graph
 fingerprint (and optionally the full edge list), metadata, and the move list. The same schema
 is read/written by the webapp (webapp/records.js); cross-language identity is tested in
