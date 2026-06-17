@@ -17,7 +17,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import numpy as np
 
 from ..rules import BLACK, WHITE, Board, GoState, IllegalMove
-from ..tilings import penrose, periodic, rosette, uniform, uniform2
+from ..tilings import penrose, pentagonal, periodic, rosette, uniform, uniform2
 from . import render
 
 # The board catalogue as FAMILIES, each with a builder and a set of sizes. Every grid type offers
@@ -43,6 +43,12 @@ _CATALOG = [
      [("small", 4), ("medium", 6), ("large", 8)]),
     ("Snub hex 3.3.3.3.6",     "snubhex", lambda p: uniform.generate("snub_hex", radius=p),
      [("small", 4), ("medium", 6), ("large", 8)]),
+    ("Cairo pentagonal",       "cairo",   lambda p: pentagonal.generate("cairo", radius=p),
+     [("small", 4), ("medium", 5), ("large", 6)]),
+    ("Prismatic pentagonal",   "prismatic", lambda p: pentagonal.generate("prismatic", radius=p),
+     [("small", 4), ("medium", 5), ("large", 6)]),
+    ("Floret pentagonal",      "floret",  lambda p: pentagonal.generate("floret", radius=p),
+     [("small", 5), ("medium", 6), ("large", 7)]),
     ("Penrose (5-fold)",       "penrose", lambda p: penrose.generate(radius=p, symmetric=True),
      [("small", 3.5), ("medium", 5), ("large", 6.5), ("x-large", 8)]),
     ("Rosette (6-sector)",     "rosette", lambda p: rosette.generate(n=int(p)),
