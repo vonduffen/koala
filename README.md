@@ -7,7 +7,7 @@
 triangular, the Archimedean tilings, even an aperiodic Penrose rhombus tiling — with a single
 neural network.**
 
-## ▶️ [**Play it now in your browser →**](https://vonduffen.github.io/koala/) · 🧊 [**or in 3D →**](https://vonduffen.github.io/koala/3d.html)
+## ▶️ [**Play it now in your browser →**](https://vonduffen.github.io/koala/) · 🧊 [**or in 3D →**](https://vonduffen.github.io/koala/3d.html) · 📄 [**read the paper →**](https://github.com/vonduffen/koala-paper)
 
 No install, no sign-up. Works on desktop and mobile, runs entirely client-side (offline after
 the first load), with the trained neural engine as your opponent on every tiling. *(It's a
